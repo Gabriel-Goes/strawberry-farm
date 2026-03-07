@@ -1,17 +1,36 @@
-# Fazenda de Morangos MVP+ com Expansão e Eventos
+# Fazenda de Morangos MVP+
 
-## Visão geral
-Este projeto é um jogo pequeno de navegador sobre plantar, colher e vender morangos.
+## Objetivo do produto
+Construir um jogo pequeno, polido e rápido de iterar sobre plantar, colher e vender morangos no navegador.
 
-O projeto foi implementado com:
+## Restrições técnicas
 - HTML puro
 - CSS puro
 - JavaScript puro
-- uma única tela
-- salvamento local com `localStorage`
+- sem frameworks
+- sem backend
+- `localStorage` para persistência
+- jogo em uma única tela
+- código legível e modular
 
-Loop principal:
+## Restrições de design
+- sessões curtas
+- uma cultura apenas: morango
+- progressão rápida e recompensadora
+- sistemas simples e óbvios
+- nenhuma feature deve exigir infraestrutura complexa
+
+## Loop principal
 Comprar sementes -> Plantar -> Esperar -> Colher -> Vender -> Reinvestir
+
+## Alvo atual
+Entregar um MVP+ com:
+- upgrades
+- expansão da fazenda
+- eventos aleatórios simples
+- HUD mais claro
+- save/load mais forte
+- metas de marco
 
 ## Estado atual
 O jogo já está funcional nos arquivos:
@@ -96,7 +115,7 @@ Tela única com:
 - botão `Vender morangos`
 - botão `Reiniciar jogo`
 
-## Arquitetura dos arquivos
+## Estrutura dos arquivos
 - `index.html`: estrutura da tela única
 - `style.css`: layout, cores e responsividade
 - `config.js`: constantes do jogo e valores da economia
@@ -147,7 +166,7 @@ Esse teste valida:
 - progressão final
 - reset do jogo
 
-## Agentes
+## Papéis do time
 O projeto também mantém agentes especializados em [AGENTS.md](/Users/wiser/projects/strawberry-farm/AGENTS.md) e no diretório [agents](/Users/wiser/projects/strawberry-farm/agents), cobrindo produto, design, economia, gameplay, UI/UX e QA/playtest.
 
 Exemplo de execução com o `playwright-skill`:
@@ -166,8 +185,10 @@ TARGET_URL='http://localhost:4173' node run.js <caminho-absoluto-do-projeto>/tes
 
 ## Fora de escopo
 - multiplayer
-- arte complexa
-- NPCs
-- estações do ano
-- áudio
-- autenticação
+- backend
+- contas de usuário
+- múltiplas culturas
+- estações
+- árvores de diálogo com NPCs
+- árvores de crafting
+- simulação complexa de mercado
