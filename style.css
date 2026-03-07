@@ -13,6 +13,7 @@
   --sprout: #3fa34d;
   --ready: #d7264f;
   --empty: #b97a56;
+  --track: rgba(255, 255, 255, 0.26);
   --shadow: 0 24px 60px rgba(100, 53, 31, 0.15);
 }
 
@@ -133,6 +134,55 @@ h1 {
   margin: 0;
 }
 
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.save-status {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(75, 42, 26, 0.06);
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.legend__dot--empty {
+  background: var(--empty);
+}
+
+.legend__dot--growing {
+  background: var(--sprout);
+}
+
+.legend__dot--ready {
+  background: var(--ready);
+}
+
 .farm-section {
   margin-top: 22px;
 }
@@ -147,15 +197,15 @@ h1 {
   appearance: none;
   border: 0;
   border-radius: 24px;
-  min-height: 136px;
+  min-height: 172px;
   background: linear-gradient(180deg, var(--soil), var(--soil-dark));
   color: #fff7ef;
-  padding: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 9px;
   cursor: pointer;
   transition:
     transform 140ms ease,
@@ -193,6 +243,27 @@ h1 {
   color: rgba(255, 247, 239, 0.82);
 }
 
+.plot__progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.plot__progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #fff2c2, #fff8ef);
+  transition: width 180ms linear;
+}
+
+.plot__hint {
+  font-size: 0.8rem;
+  color: rgba(255, 247, 239, 0.92);
+}
+
 .plot--empty {
   background: linear-gradient(180deg, #c98b66, var(--empty));
 }
@@ -203,6 +274,54 @@ h1 {
 
 .plot--ready {
   background: linear-gradient(180deg, #f26a8d, var(--ready));
+  animation: readyPulse 1s ease-in-out infinite alternate;
+}
+
+.upgrades {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.upgrade-card {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(137, 76, 51, 0.12);
+}
+
+.upgrade-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.upgrade-card__eyebrow {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.upgrade-card__text {
+  margin: 8px 0 16px;
+  min-height: 42px;
+  color: var(--muted);
+}
+
+@keyframes readyPulse {
+  from {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 0 0 rgba(210, 38, 79, 0.12);
+  }
+
+  to {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 16px 30px rgba(210, 38, 79, 0.22);
+  }
 }
 
 .actions {
@@ -268,6 +387,15 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .meta-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .legend {
+    justify-content: start;
+  }
+
   .farm-grid {
     gap: 10px;
   }
@@ -275,6 +403,10 @@ h1 {
   .plot {
     min-height: 114px;
     border-radius: 20px;
+  }
+
+  .upgrades {
+    grid-template-columns: 1fr;
   }
 
   .actions {

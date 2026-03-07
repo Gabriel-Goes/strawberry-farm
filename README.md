@@ -1,9 +1,9 @@
-# Fazenda de Morangos MVP
+# Fazenda de Morangos MVP+
 
 ## Visão geral
 Este projeto é um jogo pequeno de navegador sobre plantar, colher e vender morangos.
 
-O MVP foi implementado com:
+O projeto foi implementado com:
 - HTML puro
 - CSS puro
 - JavaScript puro
@@ -30,8 +30,13 @@ Recursos implementados:
 - compra de sementes
 - sistema de moedas
 - salvamento e carregamento com `localStorage`
+- salvamento automático com status visível
 - retomada do crescimento após recarregar a página
 - botão de reinício
+- confirmação antes de apagar progresso
+- melhoria visual dos estados dos canteiros
+- upgrade de adubo para reduzir o tempo de crescimento
+- upgrade de venda para aumentar o valor do morango
 - interface em português
 - meta de progressão de `20` moedas
 - mensagem de vitória na mesma tela
@@ -42,9 +47,11 @@ Recursos implementados:
 - O jogador começa com `0` morangos.
 - Cada semente custa `2` moedas.
 - Cada morango vendido vale `3` moedas.
+- Com upgrade de venda, cada morango vendido vale `5` moedas.
 - Cada plantio consome `1` semente.
 - Cada colheita gera `1` morango.
 - O tempo de crescimento é de `10` segundos.
+- Com upgrade de adubo, novos plantios levam `8` segundos.
 - Cada canteiro pode estar em um de três estados:
   - vazio
   - crescendo
@@ -57,7 +64,13 @@ Tela única com:
 - contador de sementes
 - contador de morangos
 - mensagem de status
+- status de autosave
+- legenda visual dos estados dos canteiros
 - grade 3x3 da fazenda
+- barra de progresso durante o crescimento
+- destaque visual quando o morango está pronto
+- card de upgrade `Adubo rápido`
+- card de upgrade `Caixa premium`
 - botão `Comprar semente`
 - botão `Vender morangos`
 - botão `Reiniciar jogo`
@@ -81,9 +94,14 @@ Tela única com:
 - [x] Comprar sementes com moedas
 - [x] Vender morangos colhidos
 - [x] Reiniciar progresso
+- [x] Exibir confirmação antes do reset
 - [x] Salvar estado com `localStorage`
 - [x] Carregar estado salvo ao abrir
 - [x] Continuar crescimento após recarga usando timestamps
+- [x] Exibir status de autosave
+- [x] Melhorar feedback visual dos canteiros
+- [x] Adicionar upgrade de crescimento
+- [x] Adicionar upgrade de venda
 - [x] Exibir mensagem de vitória ao chegar em `20` moedas
 - [x] Manter constantes separadas em `config.js`
 - [x] Traduzir a interface para português
@@ -98,10 +116,17 @@ Esse teste valida:
 - compra de sementes
 - plantio
 - persistência
+- autosave
 - crescimento e colheita
 - venda
+- upgrade de crescimento
+- upgrade de venda
 - condição de vitória
+- cancelamento de reset
 - reset do jogo
+
+## Agentes
+O projeto também mantém agentes especializados em [AGENTS.md](/Users/wiser/projects/strawberry-farm/AGENTS.md) e no diretório [agents](/Users/wiser/projects/strawberry-farm/agents), cobrindo produto, design, economia, gameplay, UI/UX e QA/playtest.
 
 Exemplo de execução com o `playwright-skill`:
 

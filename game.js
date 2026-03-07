@@ -6,36 +6,54 @@ const elements = {
   berryCount: document.querySelector("#berryCount"),
   goalStatus: document.querySelector("#goalStatus"),
   statusMessage: document.querySelector("#statusMessage"),
+  saveStatus: document.querySelector("#saveStatus"),
   farmGrid: document.querySelector("#farmGrid"),
   buySeedButton: document.querySelector("#buySeedButton"),
   sellButton: document.querySelector("#sellButton"),
   resetButton: document.querySelector("#resetButton"),
+  fertilizerButton: document.querySelector("#fertilizerButton"),
+  marketButton: document.querySelector("#marketButton"),
+  fertilizerDescription: document.querySelector("#fertilizerDescription"),
+  marketDescription: document.querySelector("#marketDescription"),
 };
 
 const storage = createStorageAdapter();
 const plotElements = [];
 let state = loadState();
 let tickIntervalId = null;
+let autosaveIntervalId = null;
+let dirty = false;
 
 render();
 startTicker();
+startAutosave();
 
 elements.buySeedButton.addEventListener("click", buySeed);
 elements.sellButton.addEventListener("click", sellStrawberries);
 elements.resetButton.addEventListener("click", resetGame);
+elements.fertilizerButton.addEventListener("click", buyFertilizerUpgrade);
+elements.marketButton.addEventListener("click", buyMarketUpgrade);
+window.addEventListener("pagehide", flushAutosave);
+window.addEventListener("beforeunload", flushAutosave);
 
 function createInitialState() {
   return {
     money: config.startingState.money,
     seeds: config.startingState.seeds,
     strawberries: config.startingState.strawberries,
+    upgrades: {
+      fertilizer: false,
+      market: false,
+    },
+    lastSavedAt: null,
+    message: "Plante seus primeiros morangos.",
     plots: Array.from({ length: config.gridSize }, (_, index) => ({
       id: index,
       state: config.plotStates.empty,
       plantedAt: null,
       readyAt: null,
+      growthDurationMs: null,
     })),
-    message: "Plante seus primeiros morangos.",
   };
 }
 
@@ -46,15 +64,15 @@ function loadState() {
     const initialState = createInitialState();
 
     if (!storage.isPersistent) {
-      initialState.message = "Seu navegador bloqueou o salvamento local neste arquivo. O jogo funciona, mas sem salvar progresso.";
+      initialState.message =
+        "Seu navegador bloqueou o salvamento local neste arquivo. O jogo funciona, mas sem salvar progresso.";
     }
 
     return initialState;
   }
 
   try {
-    const parsedState = JSON.parse(saved);
-    return hydrateState(parsedState);
+    return hydrateState(JSON.parse(saved));
   } catch {
     return createInitialState();
   }
@@ -69,6 +87,12 @@ function hydrateState(savedState) {
     ? savedState.strawberries
     : nextState.strawberries;
   nextState.message = typeof savedState.message === "string" ? savedState.message : nextState.message;
+  nextState.lastSavedAt = Number.isFinite(savedState.lastSavedAt) ? savedState.lastSavedAt : null;
+
+  if (savedState.upgrades && typeof savedState.upgrades === "object") {
+    nextState.upgrades.fertilizer = Boolean(savedState.upgrades.fertilizer);
+    nextState.upgrades.market = Boolean(savedState.upgrades.market);
+  }
 
   if (Array.isArray(savedState.plots)) {
     nextState.plots = nextState.plots.map((plot, index) => {
@@ -87,6 +111,7 @@ function hydrateState(savedState) {
         state: plotState,
         plantedAt: Number.isFinite(savedPlot.plantedAt) ? savedPlot.plantedAt : null,
         readyAt: Number.isFinite(savedPlot.readyAt) ? savedPlot.readyAt : null,
+        growthDurationMs: Number.isFinite(savedPlot.growthDurationMs) ? savedPlot.growthDurationMs : null,
       };
     });
   }
@@ -96,7 +121,9 @@ function hydrateState(savedState) {
 }
 
 function saveState() {
+  state.lastSavedAt = Date.now();
   storage.setItem(config.storageKey, JSON.stringify(state));
+  dirty = false;
 }
 
 function createStorageAdapter() {
@@ -129,6 +156,22 @@ function createStorageAdapter() {
   }
 }
 
+function getGrowthTimeMs() {
+  if (state.upgrades.fertilizer) {
+    return Math.floor(config.crop.growthTimeMs * config.upgrades.fertilizer.growthMultiplier);
+  }
+
+  return config.crop.growthTimeMs;
+}
+
+function getSellPrice() {
+  if (state.upgrades.market) {
+    return config.crop.sellPrice + config.upgrades.market.sellPriceBonus;
+  }
+
+  return config.crop.sellPrice;
+}
+
 function buySeed() {
   if (state.money < config.crop.seedPrice) {
     setMessage("Você não tem moedas suficientes para comprar uma semente.");
@@ -149,17 +192,64 @@ function sellStrawberries() {
     return;
   }
 
-  const earnedMoney = state.strawberries * config.crop.sellPrice;
+  const sellPrice = getSellPrice();
+  const earnedMoney = state.strawberries * sellPrice;
   state.money += earnedMoney;
   state.strawberries = 0;
   setMessage(`Você vendeu morangos por ${earnedMoney} moedas.`);
   commit();
 }
 
+function buyFertilizerUpgrade() {
+  const upgrade = config.upgrades.fertilizer;
+
+  if (state.upgrades.fertilizer) {
+    setMessage("O adubo rápido já está ativo.");
+    render();
+    return;
+  }
+
+  if (state.money < upgrade.cost) {
+    setMessage("Você ainda não tem moedas suficientes para comprar o adubo rápido.");
+    render();
+    return;
+  }
+
+  state.money -= upgrade.cost;
+  state.upgrades.fertilizer = true;
+  setMessage("Adubo rápido comprado. Novos plantios crescem mais rápido.");
+  commit();
+}
+
+function buyMarketUpgrade() {
+  const upgrade = config.upgrades.market;
+
+  if (state.upgrades.market) {
+    setMessage("A caixa premium já está ativa.");
+    render();
+    return;
+  }
+
+  if (state.money < upgrade.cost) {
+    setMessage("Você ainda não tem moedas suficientes para melhorar a venda.");
+    render();
+    return;
+  }
+
+  state.money -= upgrade.cost;
+  state.upgrades.market = true;
+  setMessage("Caixa premium comprada. Cada morango vendido vale mais.");
+  commit();
+}
+
 function resetGame() {
-  const shouldReset = window.confirm("Reiniciar todo o progresso?");
+  const shouldReset = window.confirm(
+    "Reiniciar todo o progresso?\n\nIsso apaga moedas, sementes, upgrades e plantações salvas.",
+  );
 
   if (!shouldReset) {
+    setMessage("O progresso foi mantido.");
+    render();
     return;
   }
 
@@ -197,9 +287,11 @@ function plantPlot(plot) {
   }
 
   const now = Date.now();
+  const growthDurationMs = getGrowthTimeMs();
   plot.state = config.plotStates.growing;
   plot.plantedAt = now;
-  plot.readyAt = now + config.crop.growthTimeMs;
+  plot.readyAt = now + growthDurationMs;
+  plot.growthDurationMs = growthDurationMs;
   state.seeds -= 1;
   setMessage("Semente plantada. Volte em alguns segundos.");
   commit();
@@ -209,6 +301,7 @@ function harvestPlot(plot) {
   plot.state = config.plotStates.empty;
   plot.plantedAt = null;
   plot.readyAt = null;
+  plot.growthDurationMs = null;
   state.strawberries += config.crop.harvestYield;
   setMessage("Você colheu 1 morango.");
   commit();
@@ -223,6 +316,7 @@ function updatePlotsByTime(targetState = state) {
       plot.state = config.plotStates.ready;
       plot.plantedAt = null;
       plot.readyAt = null;
+      plot.growthDurationMs = null;
       changed = true;
     }
   });
@@ -236,15 +330,35 @@ function startTicker() {
 
     if (changed) {
       setMessage("Um morango está pronto para colher.");
-      saveState();
+      dirty = true;
     }
 
     render();
   }, 250);
 }
 
+function startAutosave() {
+  autosaveIntervalId = window.setInterval(() => {
+    if (!dirty) {
+      return;
+    }
+
+    saveState();
+    render();
+  }, config.autosaveIntervalMs);
+}
+
+function flushAutosave() {
+  if (!dirty) {
+    return;
+  }
+
+  saveState();
+}
+
 function commit() {
   updatePlotsByTime();
+  dirty = true;
   saveState();
   render();
 }
@@ -261,6 +375,7 @@ function render() {
   elements.seedCount.textContent = String(state.seeds);
   elements.berryCount.textContent = String(state.strawberries);
   elements.statusMessage.textContent = state.message;
+  elements.saveStatus.textContent = getSaveStatusText();
 
   const hasWon = state.money >= config.winMoney;
   elements.goalStatus.textContent = hasWon
@@ -270,6 +385,23 @@ function render() {
 
   elements.buySeedButton.disabled = state.money < config.crop.seedPrice;
   elements.sellButton.disabled = state.strawberries <= 0;
+  elements.fertilizerButton.disabled =
+    state.upgrades.fertilizer || state.money < config.upgrades.fertilizer.cost;
+  elements.marketButton.disabled = state.upgrades.market || state.money < config.upgrades.market.cost;
+
+  elements.fertilizerButton.textContent = state.upgrades.fertilizer
+    ? "Adubo ativo"
+    : `Comprar adubo (${config.upgrades.fertilizer.cost})`;
+  elements.marketButton.textContent = state.upgrades.market
+    ? "Venda melhorada"
+    : `Melhorar venda (${config.upgrades.market.cost})`;
+
+  elements.fertilizerDescription.textContent = state.upgrades.fertilizer
+    ? `Ativo: novos plantios levam ${formatSeconds(getGrowthTimeMs())}.`
+    : config.upgrades.fertilizer.description;
+  elements.marketDescription.textContent = state.upgrades.market
+    ? `Ativo: cada morango vendido vale ${getSellPrice()} moedas.`
+    : config.upgrades.market.description;
 
   renderFarmGrid();
 }
@@ -286,11 +418,16 @@ function renderFarmGrid() {
       return;
     }
 
+    const progress = getPlotProgress(plot);
     plotElement.button.className = `plot plot--${plot.state}`;
+    plotElement.button.style.setProperty("--plot-progress", `${progress}%`);
     plotElement.button.setAttribute("aria-label", getPlotLabel(plot, index));
     plotElement.emoji.textContent = getPlotEmoji(plot);
     plotElement.name.textContent = getPlotName(plot);
     plotElement.timer.textContent = getPlotTimerText(plot);
+    plotElement.hint.textContent = getPlotHint(plot);
+    plotElement.progressFill.style.width = `${progress}%`;
+    plotElement.progressTrack.hidden = plot.state !== config.plotStates.growing;
   });
 }
 
@@ -313,13 +450,26 @@ function createFarmGrid() {
     const timer = document.createElement("div");
     timer.className = "plot__timer";
 
-    plotButton.append(emoji, name, timer);
+    const progressTrack = document.createElement("div");
+    progressTrack.className = "plot__progress";
+
+    const progressFill = document.createElement("div");
+    progressFill.className = "plot__progress-fill";
+    progressTrack.append(progressFill);
+
+    const hint = document.createElement("div");
+    hint.className = "plot__hint";
+
+    plotButton.append(emoji, name, timer, progressTrack, hint);
     elements.farmGrid.append(plotButton);
     plotElements.push({
       button: plotButton,
       emoji,
       name,
       timer,
+      progressTrack,
+      progressFill,
+      hint,
     });
   });
 }
@@ -342,7 +492,7 @@ function getPlotName(plot) {
   }
 
   if (plot.state === config.plotStates.ready) {
-    return "Colher";
+    return "Pronto para colher";
   }
 
   return "Terreno vazio";
@@ -351,8 +501,7 @@ function getPlotName(plot) {
 function getPlotTimerText(plot) {
   if (plot.state === config.plotStates.growing && Number.isFinite(plot.readyAt)) {
     const remainingMs = Math.max(0, plot.readyAt - Date.now());
-    const remainingSeconds = Math.ceil(remainingMs / 1000);
-    return `Faltam ${remainingSeconds}s`;
+    return `Faltam ${formatSeconds(remainingMs)}`;
   }
 
   if (plot.state === config.plotStates.ready) {
@@ -362,13 +511,62 @@ function getPlotTimerText(plot) {
   return "Clique para plantar";
 }
 
-function getPlotLabel(plot, index) {
-  return `Canteiro ${index + 1}: ${getPlotName(plot)}. ${getPlotTimerText(plot)}`;
+function getPlotHint(plot) {
+  if (plot.state === config.plotStates.growing) {
+    return `${Math.round(getPlotProgress(plot))}% concluído`;
+  }
+
+  if (plot.state === config.plotStates.ready) {
+    return "Colheita disponível";
+  }
+
+  return "Aguardando semente";
 }
 
-window.addEventListener("beforeunload", () => {
-  if (tickIntervalId !== null) {
-    window.clearInterval(tickIntervalId);
+function getPlotProgress(plot) {
+  if (
+    plot.state !== config.plotStates.growing ||
+    !Number.isFinite(plot.readyAt) ||
+    !Number.isFinite(plot.plantedAt) ||
+    !Number.isFinite(plot.growthDurationMs) ||
+    plot.growthDurationMs <= 0
+  ) {
+    return plot.state === config.plotStates.ready ? 100 : 0;
   }
-  saveState();
-});
+
+  const elapsed = Date.now() - plot.plantedAt;
+  return Math.max(0, Math.min(100, (elapsed / plot.growthDurationMs) * 100));
+}
+
+function formatSeconds(durationMs) {
+  const seconds = Math.ceil(durationMs / 1000);
+  return `${seconds}s`;
+}
+
+function getPlotLabel(plot, index) {
+  return `Canteiro ${index + 1}: ${getPlotName(plot)}. ${getPlotTimerText(plot)}. ${getPlotHint(plot)}`;
+}
+
+function getSaveStatusText() {
+  if (!storage.isPersistent) {
+    return "Salvamento local indisponível neste arquivo.";
+  }
+
+  if (dirty) {
+    return "Salvando automaticamente...";
+  }
+
+  if (Number.isFinite(state.lastSavedAt)) {
+    return `Salvo automaticamente às ${formatClock(state.lastSavedAt)}.`;
+  }
+
+  return "Salvamento automático ativo.";
+}
+
+function formatClock(timestamp) {
+  return new Date(timestamp).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}

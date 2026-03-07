@@ -37,8 +37,37 @@
           <p id="statusMessage" aria-live="polite">Plante seus primeiros morangos.</p>
         </section>
 
+        <section class="meta-row" aria-label="Status do jogo">
+          <div class="save-status" id="saveStatus" aria-live="polite">Salvamento automático pendente.</div>
+          <div class="legend" aria-label="Estados dos canteiros">
+            <span class="legend__item"><span class="legend__dot legend__dot--empty"></span>Vazio</span>
+            <span class="legend__item"><span class="legend__dot legend__dot--growing"></span>Crescendo</span>
+            <span class="legend__item"><span class="legend__dot legend__dot--ready"></span>Pronto</span>
+          </div>
+        </section>
+
         <section class="farm-section">
           <div class="farm-grid" id="farmGrid" aria-label="Grade da fazenda"></div>
+        </section>
+
+        <section class="upgrades" aria-label="Melhorias">
+          <article class="upgrade-card">
+            <p class="upgrade-card__eyebrow">Melhoria</p>
+            <h2>Adubo rápido</h2>
+            <p class="upgrade-card__text" id="fertilizerDescription">
+              Reduz o tempo de crescimento em 25%.
+            </p>
+            <button class="action-btn" id="fertilizerButton" type="button">Comprar adubo (12)</button>
+          </article>
+
+          <article class="upgrade-card">
+            <p class="upgrade-card__eyebrow">Melhoria</p>
+            <h2>Caixa premium</h2>
+            <p class="upgrade-card__text" id="marketDescription">
+              Cada morango vendido rende +2 moedas.
+            </p>
+            <button class="action-btn" id="marketButton" type="button">Melhorar venda (15)</button>
+          </article>
         </section>
 
         <section class="actions" aria-label="Ações">

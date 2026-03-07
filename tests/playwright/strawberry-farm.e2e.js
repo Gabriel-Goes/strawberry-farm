@@ -32,8 +32,34 @@ async function numberOf(page, selector) {
   return Number(await textOf(page, selector));
 }
 
+async function reachMoneyTarget(page, target) {
+  while ((await numberOf(page, "#moneyCount")) < target) {
+    await buySeedsUntilFull(page);
+    await plantAllAvailableSeeds(page);
+
+    const growingPlots = await page
+      .locator(".plot")
+      .evaluateAll((plots) => plots.filter((plot) => plot.textContent.includes("Crescendo")).length);
+
+    assert(growingPlots > 0, `Nenhum canteiro entrou em crescimento ao tentar alcançar ${target} moedas.`);
+
+    await waitForAllGrowingPlots(page);
+    await harvestAllReadyPlots(page);
+
+    if (!(await page.locator("#sellButton").isDisabled())) {
+      await page.click("#sellButton");
+    }
+  }
+}
+
 async function buySeedsUntilFull(page) {
   while (!(await page.locator("#buySeedButton").isDisabled())) {
+    await page.click("#buySeedButton");
+  }
+}
+
+async function ensureAtLeastOneSeed(page) {
+  if ((await numberOf(page, "#seedCount")) <= 0) {
     await page.click("#buySeedButton");
   }
 }
@@ -69,30 +95,14 @@ async function harvestAllReadyPlots(page) {
     const plot = page.locator(".plot").nth(index);
     const label = await plot.getAttribute("aria-label");
 
-    if (label && label.includes("Colher")) {
+    if (label && label.includes("colher")) {
       await plot.click();
     }
   }
 }
 
 async function reachGoalByPlaying(page) {
-  while ((await numberOf(page, "#moneyCount")) < 20) {
-    await buySeedsUntilFull(page);
-    await plantAllAvailableSeeds(page);
-
-    const growingPlots = await page
-      .locator(".plot")
-      .evaluateAll((plots) => plots.filter((plot) => plot.textContent.includes("Crescendo")).length);
-
-    assert(growingPlots > 0, "Nenhum canteiro entrou em crescimento durante a tentativa de chegar a 20 moedas.");
-
-    await waitForAllGrowingPlots(page);
-    await harvestAllReadyPlots(page);
-
-    if (!(await page.locator("#sellButton").isDisabled())) {
-      await page.click("#sellButton");
-    }
-  }
+  await reachMoneyTarget(page, 20);
 }
 
 (async () => {
@@ -123,6 +133,10 @@ async function reachGoalByPlaying(page) {
     assert((await textOf(page, "#seedCount")) === "3", "Sementes iniciais incorretas.");
     assert((await textOf(page, "#berryCount")) === "0", "Morangos iniciais incorretos.");
     assert(await page.locator("#sellButton").isDisabled(), "O botão de vender deveria iniciar desabilitado.");
+    assert(
+      (await textOf(page, "#saveStatus")).includes("Salvamento automático"),
+      "A interface não exibiu o status de salvamento automático.",
+    );
 
     console.log("Cenário 2: compra de semente");
     await page.click("#buySeedButton");
@@ -142,16 +156,21 @@ async function reachGoalByPlaying(page) {
     await page.reload({ waitUntil: "load" });
     await page.waitForFunction(() => {
       const plot = document.querySelector(".plot");
-      return plot && plot.textContent && (plot.textContent.includes("Crescendo") || plot.textContent.includes("Colher"));
+      return (
+        plot &&
+        plot.textContent &&
+        (plot.textContent.includes("Crescendo") || plot.textContent.includes("Pronto para colher"))
+      );
     });
     assert((await textOf(page, "#moneyCount")) === "4", "Estado de moedas não persistiu após reload.");
     assert((await textOf(page, "#seedCount")) === "3", "Estado de sementes não persistiu após reload.");
+    assert((await textOf(page, "#saveStatus")).includes("Salvo automaticamente"), "O autosave não foi refletido na interface.");
 
     console.log("Cenário 4: crescimento automático e colheita");
     await page.waitForFunction(
       () => {
         const plot = document.querySelector(".plot");
-        return plot && plot.textContent && plot.textContent.includes("Colher");
+        return plot && plot.textContent && plot.textContent.includes("Pronto para colher");
       },
       { timeout: 12000 },
     );
@@ -164,7 +183,58 @@ async function reachGoalByPlaying(page) {
     assert((await textOf(page, "#berryCount")) === "0", "Venda não zerou morangos.");
     assert((await textOf(page, "#moneyCount")) === "7", "Venda não creditou moedas corretamente.");
 
-    console.log("Cenário 6: atingir a meta jogando");
+    console.log("Cenário 6: comprar melhoria de crescimento");
+    await reachMoneyTarget(page, 12);
+    await page.click("#fertilizerButton");
+    await waitForText(page, "#statusMessage", "Adubo rápido comprado");
+    assert(await page.locator("#fertilizerButton").isDisabled(), "O botão do adubo deveria ficar desabilitado após a compra.");
+    assert(
+      (await textOf(page, "#fertilizerDescription")).includes("8s"),
+      "A descrição do adubo não refletiu o novo tempo de crescimento.",
+    );
+    await ensureAtLeastOneSeed(page);
+    await page.locator(".plot").nth(0).click();
+    await page.waitForFunction(() => {
+      const plot = document.querySelector(".plot");
+      return plot && plot.textContent && (plot.textContent.includes("Faltam 8s") || plot.textContent.includes("Faltam 7s"));
+    });
+    await page.waitForFunction(
+      () => {
+        const plot = document.querySelector(".plot");
+        return plot && plot.textContent && plot.textContent.includes("Pronto para colher");
+      },
+      { timeout: 9000 },
+    );
+    await page.locator(".plot").nth(0).click();
+    await page.click("#sellButton");
+
+    console.log("Cenário 7: comprar melhoria de venda");
+    await reachMoneyTarget(page, 15);
+    await page.click("#marketButton");
+    await waitForText(page, "#statusMessage", "Caixa premium comprada");
+    assert(await page.locator("#marketButton").isDisabled(), "O botão de melhoria de venda deveria ficar desabilitado após a compra.");
+    assert(
+      (await textOf(page, "#marketDescription")).includes("5 moedas"),
+      "A descrição da melhoria de venda não refletiu o novo preço de venda.",
+    );
+    await ensureAtLeastOneSeed(page);
+    await page.locator(".plot").nth(1).click();
+    await page.waitForFunction(
+      () => {
+        const plots = Array.from(document.querySelectorAll(".plot"));
+        return plots[1] && plots[1].textContent && plots[1].textContent.includes("Pronto para colher");
+      },
+      { timeout: 9000 },
+    );
+    await page.locator(".plot").nth(1).click();
+    const moneyBeforePremiumSale = await numberOf(page, "#moneyCount");
+    await page.click("#sellButton");
+    assert(
+      (await numberOf(page, "#moneyCount")) === moneyBeforePremiumSale + 5,
+      "A melhoria de venda não aumentou o valor do morango para 5 moedas.",
+    );
+
+    console.log("Cenário 8: atingir a meta jogando");
     await reachGoalByPlaying(page);
     assert(
       (await textOf(page, "#goalStatus")) === "Você construiu uma pequena fazenda de morangos!",
@@ -172,7 +242,15 @@ async function reachGoalByPlaying(page) {
     );
     assert((await numberOf(page, "#moneyCount")) >= 20, "O jogo não alcançou 20 moedas no fluxo jogado.");
 
-    console.log("Cenário 7: reset do jogo");
+    console.log("Cenário 9: confirmação de reset");
+    page.once("dialog", (dialog) => {
+      dialog.dismiss().catch(() => {});
+    });
+    await page.click("#resetButton");
+    await waitForText(page, "#statusMessage", "O progresso foi mantido.");
+    assert((await numberOf(page, "#moneyCount")) >= 20, "Cancelar o reset não deveria apagar o progresso.");
+
+    console.log("Cenário 10: reset do jogo");
     page.once("dialog", (dialog) => {
       dialog.accept().catch(() => {});
     });
@@ -182,6 +260,14 @@ async function reachGoalByPlaying(page) {
     assert((await textOf(page, "#seedCount")) === "3", "Reset não restaurou sementes.");
     assert((await textOf(page, "#berryCount")) === "0", "Reset não restaurou morangos.");
     assert((await page.locator(".plot").count()) === 9, "Reset corrompeu a grade.");
+    assert(
+      (await textOf(page, "#fertilizerButton")) === "Comprar adubo (12)",
+      "Reset não restaurou o estado original da melhoria de crescimento.",
+    );
+    assert(
+      (await textOf(page, "#marketButton")) === "Melhorar venda (15)",
+      "Reset não restaurou o estado original da melhoria de venda.",
+    );
 
     await page.screenshot({
       path: "/tmp/strawberry-farm-test.png",
