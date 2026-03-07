@@ -4,9 +4,13 @@ const elements = {
   moneyCount: document.querySelector("#moneyCount"),
   seedCount: document.querySelector("#seedCount"),
   berryCount: document.querySelector("#berryCount"),
+  sellPriceValue: document.querySelector("#sellPriceValue"),
+  growthTimeValue: document.querySelector("#growthTimeValue"),
   goalStatus: document.querySelector("#goalStatus"),
   statusMessage: document.querySelector("#statusMessage"),
   saveStatus: document.querySelector("#saveStatus"),
+  progressSummary: document.querySelector("#progressSummary"),
+  goalList: document.querySelector("#goalList"),
   farmGrid: document.querySelector("#farmGrid"),
   buySeedButton: document.querySelector("#buySeedButton"),
   sellButton: document.querySelector("#sellButton"),
@@ -20,7 +24,6 @@ const elements = {
 const storage = createStorageAdapter();
 const plotElements = [];
 let state = loadState();
-let tickIntervalId = null;
 let autosaveIntervalId = null;
 let dirty = false;
 
@@ -44,6 +47,14 @@ function createInitialState() {
     upgrades: {
       fertilizer: false,
       market: false,
+    },
+    progression: {
+      completedGoalIds: [],
+    },
+    stats: {
+      harvestedTotal: 0,
+      soldTotal: 0,
+      upgradesPurchased: 0,
     },
     lastSavedAt: null,
     message: "Plante seus primeiros morangos.",
@@ -92,6 +103,24 @@ function hydrateState(savedState) {
   if (savedState.upgrades && typeof savedState.upgrades === "object") {
     nextState.upgrades.fertilizer = Boolean(savedState.upgrades.fertilizer);
     nextState.upgrades.market = Boolean(savedState.upgrades.market);
+  }
+
+  if (savedState.progression && Array.isArray(savedState.progression.completedGoalIds)) {
+    nextState.progression.completedGoalIds = savedState.progression.completedGoalIds.filter((goalId) =>
+      config.progressionGoals.some((goal) => goal.id === goalId),
+    );
+  }
+
+  if (savedState.stats && typeof savedState.stats === "object") {
+    nextState.stats.harvestedTotal = Number.isFinite(savedState.stats.harvestedTotal)
+      ? savedState.stats.harvestedTotal
+      : nextState.stats.harvestedTotal;
+    nextState.stats.soldTotal = Number.isFinite(savedState.stats.soldTotal)
+      ? savedState.stats.soldTotal
+      : nextState.stats.soldTotal;
+    nextState.stats.upgradesPurchased = Number.isFinite(savedState.stats.upgradesPurchased)
+      ? savedState.stats.upgradesPurchased
+      : nextState.stats.upgradesPurchased;
   }
 
   if (Array.isArray(savedState.plots)) {
@@ -193,9 +222,11 @@ function sellStrawberries() {
   }
 
   const sellPrice = getSellPrice();
-  const earnedMoney = state.strawberries * sellPrice;
+  const quantity = state.strawberries;
+  const earnedMoney = quantity * sellPrice;
   state.money += earnedMoney;
   state.strawberries = 0;
+  state.stats.soldTotal += quantity;
   setMessage(`Você vendeu morangos por ${earnedMoney} moedas.`);
   commit();
 }
@@ -217,6 +248,7 @@ function buyFertilizerUpgrade() {
 
   state.money -= upgrade.cost;
   state.upgrades.fertilizer = true;
+  state.stats.upgradesPurchased += 1;
   setMessage("Adubo rápido comprado. Novos plantios crescem mais rápido.");
   commit();
 }
@@ -238,13 +270,14 @@ function buyMarketUpgrade() {
 
   state.money -= upgrade.cost;
   state.upgrades.market = true;
+  state.stats.upgradesPurchased += 1;
   setMessage("Caixa premium comprada. Cada morango vendido vale mais.");
   commit();
 }
 
 function resetGame() {
   const shouldReset = window.confirm(
-    "Reiniciar todo o progresso?\n\nIsso apaga moedas, sementes, upgrades e plantações salvas.",
+    "Reiniciar todo o progresso?\n\nIsso apaga moedas, sementes, upgrades, metas e plantações salvas.",
   );
 
   if (!shouldReset) {
@@ -303,6 +336,7 @@ function harvestPlot(plot) {
   plot.readyAt = null;
   plot.growthDurationMs = null;
   state.strawberries += config.crop.harvestYield;
+  state.stats.harvestedTotal += config.crop.harvestYield;
   setMessage("Você colheu 1 morango.");
   commit();
 }
@@ -325,7 +359,7 @@ function updatePlotsByTime(targetState = state) {
 }
 
 function startTicker() {
-  tickIntervalId = window.setInterval(() => {
+  window.setInterval(() => {
     const changed = updatePlotsByTime();
 
     if (changed) {
@@ -358,9 +392,75 @@ function flushAutosave() {
 
 function commit() {
   updatePlotsByTime();
+  const goalRewards = applyProgressionGoals();
+
+  if (goalRewards.length > 0) {
+    setMessage(goalRewards.join(" "));
+  }
+
   dirty = true;
   saveState();
   render();
+}
+
+function applyProgressionGoals() {
+  const unlockedMessages = [];
+
+  config.progressionGoals.forEach((goal) => {
+    if (state.progression.completedGoalIds.includes(goal.id)) {
+      return;
+    }
+
+    if (!hasReachedGoal(goal)) {
+      return;
+    }
+
+    state.progression.completedGoalIds.push(goal.id);
+    const rewardMessage = grantGoalReward(goal.reward);
+    unlockedMessages.push(
+      rewardMessage
+        ? `Meta concluída: ${goal.title}. ${rewardMessage}`
+        : `Meta concluída: ${goal.title}.`,
+    );
+  });
+
+  return unlockedMessages;
+}
+
+function hasReachedGoal(goal) {
+  if (goal.targetType === "harvestedTotal") {
+    return state.stats.harvestedTotal >= goal.targetValue;
+  }
+
+  if (goal.targetType === "upgradesPurchased") {
+    return state.stats.upgradesPurchased >= goal.targetValue;
+  }
+
+  if (goal.targetType === "money") {
+    return state.money >= goal.targetValue;
+  }
+
+  return false;
+}
+
+function grantGoalReward(reward) {
+  if (!reward) {
+    return "";
+  }
+
+  const rewardParts = [];
+
+  if (Number.isFinite(reward.money) && reward.money > 0) {
+    state.money += reward.money;
+    rewardParts.push(`Recompensa: +${reward.money} moedas.`);
+  }
+
+  if (Number.isFinite(reward.seeds) && reward.seeds > 0) {
+    state.seeds += reward.seeds;
+    rewardParts.push(`Recompensa: +${reward.seeds} sementes.`);
+  }
+
+  return rewardParts.join(" ");
 }
 
 function setMessage(message) {
@@ -374,10 +474,12 @@ function render() {
   elements.moneyCount.textContent = String(state.money);
   elements.seedCount.textContent = String(state.seeds);
   elements.berryCount.textContent = String(state.strawberries);
+  elements.sellPriceValue.textContent = `${getSellPrice()} moedas`;
+  elements.growthTimeValue.textContent = formatSeconds(getGrowthTimeMs());
   elements.statusMessage.textContent = state.message;
   elements.saveStatus.textContent = getSaveStatusText();
 
-  const hasWon = state.money >= config.winMoney;
+  const hasWon = state.progression.completedGoalIds.includes("reach-20");
   elements.goalStatus.textContent = hasWon
     ? "Você construiu uma pequena fazenda de morangos!"
     : `Meta: alcançar ${config.winMoney} moedas`;
@@ -404,6 +506,7 @@ function render() {
     : config.upgrades.market.description;
 
   renderFarmGrid();
+  renderProgression();
 }
 
 function renderFarmGrid() {
@@ -420,7 +523,6 @@ function renderFarmGrid() {
 
     const progress = getPlotProgress(plot);
     plotElement.button.className = `plot plot--${plot.state}`;
-    plotElement.button.style.setProperty("--plot-progress", `${progress}%`);
     plotElement.button.setAttribute("aria-label", getPlotLabel(plot, index));
     plotElement.emoji.textContent = getPlotEmoji(plot);
     plotElement.name.textContent = getPlotName(plot);
@@ -472,6 +574,68 @@ function createFarmGrid() {
       hint,
     });
   });
+}
+
+function renderProgression() {
+  const completedCount = state.progression.completedGoalIds.length;
+  elements.progressSummary.textContent = `${completedCount} de ${config.progressionGoals.length} metas concluídas`;
+
+  elements.goalList.innerHTML = "";
+
+  config.progressionGoals.forEach((goal) => {
+    const item = document.createElement("li");
+    const isDone = state.progression.completedGoalIds.includes(goal.id);
+    item.className = `goal-item${isDone ? " goal-item--done" : ""}`;
+
+    const title = document.createElement("div");
+    title.className = "goal-item__title";
+    title.textContent = goal.title;
+
+    const description = document.createElement("div");
+    description.className = "goal-item__description";
+    description.textContent = goal.description;
+
+    const meta = document.createElement("div");
+    meta.className = "goal-item__meta";
+    meta.textContent = isDone ? "Concluída" : getGoalProgressText(goal);
+
+    item.append(title, description, meta);
+    elements.goalList.append(item);
+  });
+}
+
+function getGoalProgressText(goal) {
+  const currentValue = getGoalCurrentValue(goal);
+
+  if (goal.targetType === "money") {
+    return `${currentValue}/${goal.targetValue} moedas`;
+  }
+
+  if (goal.targetType === "harvestedTotal") {
+    return `${currentValue}/${goal.targetValue} morangos colhidos`;
+  }
+
+  if (goal.targetType === "upgradesPurchased") {
+    return `${currentValue}/${goal.targetValue} melhorias`;
+  }
+
+  return `${currentValue}/${goal.targetValue}`;
+}
+
+function getGoalCurrentValue(goal) {
+  if (goal.targetType === "harvestedTotal") {
+    return state.stats.harvestedTotal;
+  }
+
+  if (goal.targetType === "upgradesPurchased") {
+    return state.stats.upgradesPurchased;
+  }
+
+  if (goal.targetType === "money") {
+    return state.money;
+  }
+
+  return 0;
 }
 
 function getPlotEmoji(plot) {

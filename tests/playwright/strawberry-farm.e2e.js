@@ -32,6 +32,10 @@ async function numberOf(page, selector) {
   return Number(await textOf(page, selector));
 }
 
+async function completedGoalsCount(page) {
+  return page.locator("#goalList .goal-item--done").count();
+}
+
 async function reachMoneyTarget(page, target) {
   while ((await numberOf(page, "#moneyCount")) < target) {
     await buySeedsUntilFull(page);
@@ -132,6 +136,10 @@ async function reachGoalByPlaying(page) {
     assert((await textOf(page, "#moneyCount")) === "6", "Moedas iniciais incorretas.");
     assert((await textOf(page, "#seedCount")) === "3", "Sementes iniciais incorretas.");
     assert((await textOf(page, "#berryCount")) === "0", "Morangos iniciais incorretos.");
+    assert((await textOf(page, "#sellPriceValue")) === "3 moedas", "HUD inicial com valor de venda incorreto.");
+    assert((await textOf(page, "#growthTimeValue")) === "10s", "HUD inicial com tempo de crescimento incorreto.");
+    assert((await textOf(page, "#progressSummary")) === "0 de 3 metas concluídas", "Resumo inicial de progressão incorreto.");
+    assert((await page.locator("#goalList .goal-item").count()) === 3, "A lista de metas não possui 3 itens.");
     assert(await page.locator("#sellButton").isDisabled(), "O botão de vender deveria iniciar desabilitado.");
     assert(
       (await textOf(page, "#saveStatus")).includes("Salvamento automático"),
@@ -165,6 +173,7 @@ async function reachGoalByPlaying(page) {
     assert((await textOf(page, "#moneyCount")) === "4", "Estado de moedas não persistiu após reload.");
     assert((await textOf(page, "#seedCount")) === "3", "Estado de sementes não persistiu após reload.");
     assert((await textOf(page, "#saveStatus")).includes("Salvo automaticamente"), "O autosave não foi refletido na interface.");
+    assert((await textOf(page, "#progressSummary")) === "0 de 3 metas concluídas", "A progressão inicial não persistiu corretamente.");
 
     console.log("Cenário 4: crescimento automático e colheita");
     await page.waitForFunction(
@@ -186,12 +195,23 @@ async function reachGoalByPlaying(page) {
     console.log("Cenário 6: comprar melhoria de crescimento");
     await reachMoneyTarget(page, 12);
     await page.click("#fertilizerButton");
-    await waitForText(page, "#statusMessage", "Adubo rápido comprado");
+    await page.waitForFunction(() => {
+      const button = document.querySelector("#fertilizerButton");
+      const timeValue = document.querySelector("#growthTimeValue");
+      return (
+        button &&
+        button.textContent &&
+        button.textContent.includes("Adubo ativo") &&
+        timeValue &&
+        timeValue.textContent === "8s"
+      );
+    });
     assert(await page.locator("#fertilizerButton").isDisabled(), "O botão do adubo deveria ficar desabilitado após a compra.");
     assert(
       (await textOf(page, "#fertilizerDescription")).includes("8s"),
       "A descrição do adubo não refletiu o novo tempo de crescimento.",
     );
+    assert((await textOf(page, "#growthTimeValue")) === "8s", "O HUD não refletiu o novo tempo de crescimento.");
     await ensureAtLeastOneSeed(page);
     await page.locator(".plot").nth(0).click();
     await page.waitForFunction(() => {
@@ -211,12 +231,24 @@ async function reachGoalByPlaying(page) {
     console.log("Cenário 7: comprar melhoria de venda");
     await reachMoneyTarget(page, 15);
     await page.click("#marketButton");
-    await waitForText(page, "#statusMessage", "Caixa premium comprada");
+    await page.waitForFunction(() => {
+      const button = document.querySelector("#marketButton");
+      const sellValue = document.querySelector("#sellPriceValue");
+      return (
+        button &&
+        button.textContent &&
+        button.textContent.includes("Venda melhorada") &&
+        sellValue &&
+        sellValue.textContent === "5 moedas"
+      );
+    });
     assert(await page.locator("#marketButton").isDisabled(), "O botão de melhoria de venda deveria ficar desabilitado após a compra.");
     assert(
       (await textOf(page, "#marketDescription")).includes("5 moedas"),
       "A descrição da melhoria de venda não refletiu o novo preço de venda.",
     );
+    assert((await textOf(page, "#sellPriceValue")) === "5 moedas", "O HUD não refletiu o novo valor de venda.");
+    assert((await completedGoalsCount(page)) >= 2, "As metas intermediárias não foram concluídas como esperado.");
     await ensureAtLeastOneSeed(page);
     await page.locator(".plot").nth(1).click();
     await page.waitForFunction(
@@ -234,15 +266,22 @@ async function reachGoalByPlaying(page) {
       "A melhoria de venda não aumentou o valor do morango para 5 moedas.",
     );
 
-    console.log("Cenário 8: atingir a meta jogando");
+    console.log("Cenário 8: persistência das melhorias e metas");
+    await page.reload({ waitUntil: "load" });
+    assert((await textOf(page, "#growthTimeValue")) === "8s", "O upgrade de crescimento não persistiu após reload.");
+    assert((await textOf(page, "#sellPriceValue")) === "5 moedas", "O upgrade de venda não persistiu após reload.");
+    assert((await completedGoalsCount(page)) >= 2, "As metas concluídas não persistiram após reload.");
+
+    console.log("Cenário 9: atingir a meta jogando");
     await reachGoalByPlaying(page);
     assert(
       (await textOf(page, "#goalStatus")) === "Você construiu uma pequena fazenda de morangos!",
       "A mensagem de vitória não foi exibida após alcançar 20 moedas jogando.",
     );
     assert((await numberOf(page, "#moneyCount")) >= 20, "O jogo não alcançou 20 moedas no fluxo jogado.");
+    assert((await textOf(page, "#progressSummary")) === "3 de 3 metas concluídas", "A meta final não marcou a progressão completa.");
 
-    console.log("Cenário 9: confirmação de reset");
+    console.log("Cenário 10: confirmação de reset");
     page.once("dialog", (dialog) => {
       dialog.dismiss().catch(() => {});
     });
@@ -250,7 +289,7 @@ async function reachGoalByPlaying(page) {
     await waitForText(page, "#statusMessage", "O progresso foi mantido.");
     assert((await numberOf(page, "#moneyCount")) >= 20, "Cancelar o reset não deveria apagar o progresso.");
 
-    console.log("Cenário 10: reset do jogo");
+    console.log("Cenário 11: reset do jogo");
     page.once("dialog", (dialog) => {
       dialog.accept().catch(() => {});
     });
@@ -259,6 +298,9 @@ async function reachGoalByPlaying(page) {
     assert((await textOf(page, "#moneyCount")) === "6", "Reset não restaurou moedas.");
     assert((await textOf(page, "#seedCount")) === "3", "Reset não restaurou sementes.");
     assert((await textOf(page, "#berryCount")) === "0", "Reset não restaurou morangos.");
+    assert((await textOf(page, "#sellPriceValue")) === "3 moedas", "Reset não restaurou o valor base de venda.");
+    assert((await textOf(page, "#growthTimeValue")) === "10s", "Reset não restaurou o tempo base de crescimento.");
+    assert((await textOf(page, "#progressSummary")) === "0 de 3 metas concluídas", "Reset não restaurou a progressão.");
     assert((await page.locator(".plot").count()) === 9, "Reset corrompeu a grade.");
     assert(
       (await textOf(page, "#fertilizerButton")) === "Comprar adubo (12)",

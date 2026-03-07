@@ -11,7 +11,7 @@
       <section class="panel">
         <div class="panel__header">
           <div>
-            <p class="eyebrow">MVP de fim de semana</p>
+            <p class="eyebrow">MVP+ de fazenda casual</p>
             <h1>Fazenda de Morangos</h1>
             <p class="subtitle">Compre sementes, plante, espere, colha e venda.</p>
           </div>
@@ -31,6 +31,14 @@
             <span class="stat__label">Morangos</span>
             <strong class="stat__value" id="berryCount">0</strong>
           </article>
+          <article class="stat">
+            <span class="stat__label">Venda atual</span>
+            <strong class="stat__value" id="sellPriceValue">3 moedas</strong>
+          </article>
+          <article class="stat">
+            <span class="stat__label">Tempo atual</span>
+            <strong class="stat__value" id="growthTimeValue">10s</strong>
+          </article>
         </section>
 
         <section class="status-bar">
@@ -48,6 +56,17 @@
 
         <section class="farm-section">
           <div class="farm-grid" id="farmGrid" aria-label="Grade da fazenda"></div>
+        </section>
+
+        <section class="progression" aria-label="Progresso">
+          <div class="progression__header">
+            <div>
+              <p class="progression__eyebrow">Progressão</p>
+              <h2>Próximos passos</h2>
+            </div>
+            <div class="progression__summary" id="progressSummary">0 de 3 metas concluídas</div>
+          </div>
+          <ul class="goal-list" id="goalList" aria-live="polite"></ul>
         </section>
 
         <section class="upgrades" aria-label="Melhorias">
