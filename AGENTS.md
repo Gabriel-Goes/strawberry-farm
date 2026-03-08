@@ -50,6 +50,11 @@ Entregar um MVP+ com:
 - metas de marco e meta final de moedas
 - feedback visual de meta concluída
 
+## Organização de testes
+- todos os artefatos de teste ficam dentro da pasta `tests/`
+- automação principal em `tests/playwright/strawberry-farm.e2e.js`
+- cenários e relatórios em `tests/docs/`
+
 ## Fora de escopo
 - multiplayer
 - backend

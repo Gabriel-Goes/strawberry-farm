@@ -136,7 +136,11 @@ Tela única com:
 - `style.css`: layout, cores e responsividade
 - `config.js`: constantes do jogo e valores da economia
 - `game.js`: estado, renderização, lógica do jogo e persistência
+- `tests/README.md`: visão geral dos artefatos de teste
 - `tests/playwright/strawberry-farm.e2e.js`: teste end-to-end principal com Playwright
+- `tests/docs/TEST_SCENARIOS.md`: cenários de teste manuais e base para automação
+- `tests/docs/QA_REPORT.md`: primeiro relatório de QA
+- `tests/docs/QA_REPORT_V2.md`: relatório de QA após o sprint de estabilidade
 
 ## Checklist de implementação
 - [x] Criar layout de tela única
@@ -171,9 +175,14 @@ Tela única com:
 - [x] Traduzir a interface para português
 
 ## Testes
-O projeto possui um teste principal de interface e fluxo em:
+Todo o material de testes fica dentro da pasta `tests/`.
+
+Principais arquivos:
 
 - `tests/playwright/strawberry-farm.e2e.js`
+- `tests/docs/TEST_SCENARIOS.md`
+- `tests/docs/QA_REPORT.md`
+- `tests/docs/QA_REPORT_V2.md`
 
 Esse teste valida:
 - renderização inicial
@@ -187,6 +196,11 @@ Esse teste valida:
 - progressão final
 - reset do jogo
 
+Os documentos de apoio cobrem:
+- cenários manuais e critérios de cobertura
+- histórico de QA
+- validações após correções de estabilidade
+
 ## Papéis do time
 O projeto também mantém agentes especializados em [AGENTS.md](/Users/wiser/projects/strawberry-farm/AGENTS.md) e no diretório [agents](/Users/wiser/projects/strawberry-farm/agents), cobrindo produto, design, economia, gameplay, UI/UX e QA/playtest.
 
@@ -194,14 +208,16 @@ Exemplo de execução com o `playwright-skill`:
 
 ```bash
 cd <caminho-do-playwright-skill>
-TARGET_URL="file://$(pwd)/index.html" node run.js "$(pwd)/tests/playwright/strawberry-farm.e2e.js"
+PROJECT_ROOT="<caminho-absoluto-do-projeto>"
+TARGET_URL="file://$PROJECT_ROOT/index.html" node run.js "$PROJECT_ROOT/tests/playwright/strawberry-farm.e2e.js"
 ```
 
 Se quiser apontar para outra URL:
 
 ```bash
 cd <caminho-do-playwright-skill>
-TARGET_URL='http://localhost:4173' node run.js <caminho-absoluto-do-projeto>/tests/playwright/strawberry-farm.e2e.js
+PROJECT_ROOT="<caminho-absoluto-do-projeto>"
+TARGET_URL='http://localhost:4173' node run.js "$PROJECT_ROOT/tests/playwright/strawberry-farm.e2e.js"
 ```
 
 ## Fora de escopo

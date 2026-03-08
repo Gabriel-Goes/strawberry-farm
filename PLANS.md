@@ -33,6 +33,7 @@ Expandir a fazenda de `3x3` para `4x4`, adicionar eventos aleatórios simples e 
 - a progressão continua curta e recompensadora
 - save/load restaura corretamente expansão, eventos e progresso
 - o fluxo principal continua validado por QA
+- os artefatos de teste permanecem organizados dentro da pasta `tests/`
 
 ## 5. Riscos
 - uma expansão cara demais pode travar a progressão
