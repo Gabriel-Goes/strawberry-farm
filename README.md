@@ -1,274 +1,72 @@
 # Fazenda de Morangos MVP+
 
-## Objetivo do produto
-Construir um jogo pequeno, polido e rápido de iterar sobre plantar, colher e vender morangos no navegador.
+## Visão geral
+`Strawberry Farm` é um jogo pequeno de navegador feito com HTML, CSS e JavaScript puros. O loop principal continua simples: comprar sementes, plantar, esperar, colher, vender e reinvestir.
 
-## Restrições técnicas
-- HTML puro
-- CSS puro
-- JavaScript puro
-- sem frameworks
-- sem backend
-- `localStorage` para persistência
-- jogo em uma única tela
-- código legível e modular
-
-## Restrições de design
-- sessões curtas
-- uma cultura apenas: morango
-- progressão rápida e recompensadora
-- sistemas simples e óbvios
-- nenhuma feature deve exigir infraestrutura complexa
-
-## Loop principal
-Comprar sementes -> Plantar -> Esperar -> Colher -> Vender -> Reinvestir
-
-## Alvo atual
-Entregar um MVP+ com:
-- upgrades
-- expansão da fazenda
+O jogo atual inclui:
+- plantio, crescimento e colheita
+- combo de colheita
+- mercado dinâmico
 - eventos aleatórios simples
-- HUD mais claro
-- save/load mais forte
-- metas de marco
-- onboarding curto
-- feedback de progresso mais claro
+- upgrades
+- expansão `3x3` -> `4x4`
+- `Farm Helper`
+- prestígio `Strawberry Knowledge`
+- save/load com `localStorage`
+- HUD em tela única
 
-## Estado atual
-O jogo já está funcional nos arquivos:
-- `index.html`
-- `style.css`
-- `game.js`
-- `config.js`
+## Runtime
+O runtime jogável agora está separado da documentação e do workflow:
 
-Recursos implementados:
-- fazenda expansível de `3x3` para `4x4`
-- morango como única cultura
-- painel de onboarding e ajuda rápida
-- plantio ao clicar em terreno vazio
-- temporizador simples de crescimento
-- colheita ao clicar em planta pronta
-- venda de todos os morangos colhidos
-- compra de sementes
-- sistema de moedas
-- helper de automação leve para colheita
-- sistema de prestígio `Strawberry Knowledge`
-- salvamento e carregamento com `localStorage`
-- salvamento automático com status visível
-- retomada do crescimento após recarregar a página
-- botão de reinício
-- confirmação antes de apagar progresso
-- melhoria visual dos estados dos canteiros
-- upgrade de adubo para reduzir o tempo de crescimento
-- upgrade de venda para aumentar o valor do morango
-- expansão de fazenda para liberar `16` canteiros
-- 3 eventos aleatórios simples
-- banner visual para evento ativo com temporizador
-- barra de progresso do evento ativo
-- texto de efeito prático do evento ativo
-- interface em português
-- metas de progressão em tela única
-- indicadores de progresso para meta final e canteiros prontos
-- feedback visual de conclusão de meta
-- combo de colheita curto com bônus leve
-- mercado dinâmico simples
-- layout desktop em 3 zonas com fazenda central
-- módulos compactos de status para evento, combo, helper e autosave
-- ajuda rápida recolhida por padrão
-- indicador do `Farm Helper` no HUD
-- colheita automática visual pelo `Farm Helper`
-- progresso permanente por prestígio
-- meta de progressão final de `35` moedas
-- mensagem de vitória na mesma tela
+- `public/index.html`: entrypoint real do jogo
+- `public/style.css`: layout e visual
+- `src/config/gameConfig.js`: valores do jogo
+- `src/state/*`: estado inicial e persistência
+- `src/systems/*`: regras e sistemas de gameplay
+- `src/ui/*`: grid e renderização
+- `src/utils/*`: utilitários
 
-## Regras atuais
-- O jogador começa com `6` moedas.
-- O jogador começa com `3` sementes.
-- O jogador começa com `0` morangos.
-- A fazenda começa com `9` canteiros.
-- A expansão custa `10` moedas e libera `16` canteiros.
-- Cada semente custa `2` moedas.
-- Durante o evento `Feira local`, cada semente custa `1` moeda.
-- Cada morango vendido vale `3` moedas.
-- Com upgrade de venda, cada morango vendido vale `5` moedas.
-- Durante o evento `Sol forte`, cada morango vendido recebe `+1` moeda.
-- Cada plantio consome `1` semente.
-- Cada colheita gera `1` morango.
-- O tempo de crescimento é de `10` segundos.
-- Com upgrade de adubo, novos plantios levam `8` segundos.
-- Durante o evento `Chuva leve`, as plantas atuais aceleram e os novos plantios crescem mais rápido.
-- O upgrade `Adubo rápido` custa `10` moedas.
-- O upgrade `Caixa premium` custa `14` moedas.
-- O `Farm Helper` custa `18` moedas.
-- O `Farm Helper` colhe `1` canteiro pronto a cada `3.5` segundos.
-- O `Farm Helper` não planta, não vende e não ativa combo.
-- O primeiro prestígio exige `120` moedas.
-- Cada novo prestígio aumenta o requisito em `120` moedas.
-- Cada nível de `Strawberry Knowledge` dá `+20%` permanente no valor total das vendas.
-- Ao prestigiar, o jogador perde moedas, sementes, morangos, expansão, upgrades, helper, plantações, evento e combo atuais.
-- Cada canteiro pode estar em um de três estados:
-  - vazio
-  - crescendo
-  - pronto para colher
-- Os eventos duram cerca de `12` segundos e podem surgir ao vender morangos.
-- As metas atuais são:
-  - colher `4` morangos
-  - expandir a fazenda para `4x4`
-  - comprar `2` melhorias
-  - alcançar `35` moedas
+O arquivo [index.html](/Users/wiser/projects/strawberry-farm/index.html) na raiz foi mantido como redirecionamento de compatibilidade para [public/index.html](/Users/wiser/projects/strawberry-farm/public/index.html).
 
-## Interface atual
-Tela única com foco desktop-first:
-- zona esquerda com HUD compacto, ações principais e módulos de status
-- zona central com grade da fazenda e feedback principal
-- zona direita com progressão, upgrades, expansão, prestígio e ajuda rápida
-- layout mobile empilhado quando a largura não comporta as 3 zonas
+## Estrutura do repositório
+- `public/`: arquivos estáticos do jogo
+- `src/`: runtime JavaScript
+- `agents/prompts/`: prompts dos agentes
+- `agents/planning/`: análises, planos e reviews de sprint
+- `agents/docs/`: documentação de sistemas, economia e UI
+- `docs/`: documentação arquitetural estável
+- `tests/`: automação, cenários manuais, relatórios e evidências
 
-Módulos presentes:
-- título do jogo
-- botão e painel de ajuda rápida
-- contador de moedas
-- contador de sementes
-- contador de morangos
-- contador de preço atual de venda
-- contador de tempo atual de crescimento
-- contador de tamanho atual da fazenda
-- contador de status do `Farm Helper`
-- contador de nível de `Strawberry Knowledge`
-- mensagem de status
-- status de autosave
-- faixa de atividade do `Farm Helper`
-- painel de prestígio com requisito atual e botão opcional
-- toast visual para meta concluída
-- barra de progresso da meta final
-- barra de progresso de canteiros prontos
-- legenda visual dos estados dos canteiros
-- banner de evento ativo com temporizador
-- texto de efeito prático do evento ativo
-- barra de duração do evento
-- grade da fazenda que começa em `3x3` e pode virar `4x4`
-- barra de progresso durante o crescimento
-- badge visual de ação em cada canteiro
-- destaque visual quando o morango está pronto
-- card de upgrade `Adubo rápido`
-- card de upgrade `Caixa premium`
-- card de expansão `Fazenda 4x4`
-- card de upgrade `Farm Helper`
-- painel `Strawberry Knowledge`
-- painel de metas de progressão
-- botão `Comprar semente`
-- botão `Vender morangos`
-- botão `Reiniciar jogo`
+## Arquitetura
+Documentos principais:
+- [docs/ARCHITECTURE_PROPOSAL.md](/Users/wiser/projects/strawberry-farm/docs/ARCHITECTURE_PROPOSAL.md)
+- [docs/CODE_SPLIT_PLAN.md](/Users/wiser/projects/strawberry-farm/docs/CODE_SPLIT_PLAN.md)
+- [docs/REPO_ORGANIZATION_PLAN.md](/Users/wiser/projects/strawberry-farm/docs/REPO_ORGANIZATION_PLAN.md)
+- [docs/ARCHITECTURE_IMPLEMENTATION.md](/Users/wiser/projects/strawberry-farm/docs/ARCHITECTURE_IMPLEMENTATION.md)
 
-## Estrutura dos arquivos
-- `index.html`: estrutura da tela única
-- `style.css`: layout, cores e responsividade
-- `config.js`: constantes do jogo e valores da economia
-- `game.js`: estado, renderização, lógica do jogo e persistência
-- `tests/README.md`: visão geral dos artefatos de teste
-- `tests/playwright/strawberry-farm.e2e.js`: teste end-to-end principal com Playwright
-- `tests/docs/TEST_SCENARIOS.md`: cenários de teste manuais e base para automação
-- `tests/docs/QA_REPORT.md`: primeiro relatório de QA
-- `tests/docs/QA_REPORT_V2.md`: relatório de QA após o sprint de estabilidade
-- `tests/docs/QA_REPORT_MARKET.md`: relatório de QA do sistema de mercado
-- `tests/docs/QA_REPORT_SPRINT_6.md`: relatório de QA do helper de automação
-- `tests/docs/QA_REPORT_SPRINT_7.md`: relatório de QA do sistema de prestígio
-- `tests/docs/QA_REPORT_SPRINT_8.md`: relatório de QA do redesenho horizontal da interface
-- `tests/artifacts/`: evidências geradas pelos testes
-
-## Checklist de implementação
-- [x] Criar layout de tela única
-- [x] Exibir título, moedas, sementes e morangos
-- [x] Renderizar fazenda inicial 3x3
-- [x] Representar canteiros vazios, crescendo e prontos
-- [x] Permitir plantio em canteiros vazios
-- [x] Iniciar temporizador ao plantar
-- [x] Liberar colheita ao final do tempo
-- [x] Permitir colher com clique
-- [x] Comprar sementes com moedas
-- [x] Vender morangos colhidos
-- [x] Reiniciar progresso
-- [x] Exibir confirmação antes do reset
-- [x] Salvar estado com `localStorage`
-- [x] Carregar estado salvo ao abrir
-- [x] Continuar crescimento após recarga usando timestamps
-- [x] Exibir status de autosave
-- [x] Adicionar painel curto de onboarding
-- [x] Melhorar feedback visual dos canteiros
-- [x] Adicionar indicadores de progresso úteis
-- [x] Adicionar upgrade de crescimento
-- [x] Adicionar upgrade de venda
-- [x] Adicionar helper de colheita automática
-- [x] Adicionar sistema de prestígio simples
-- [x] Adicionar expansão para 4x4
-- [x] Adicionar 3 eventos aleatórios simples
-- [x] Exibir banner visual de evento ativo
-- [x] Exibir feedback visual de conclusão de meta
-- [x] Melhorar responsividade visual do ticker
-- [x] Persistir expansão, eventos e progresso no save
-- [x] Exibir mensagem de vitória ao chegar em `35` moedas
-- [x] Manter constantes separadas em `config.js`
-- [x] Traduzir a interface para português
+## Desenvolvimento
+Prompts e material de coordenação do projeto:
+- [agents/prompts/full-game-director.md](/Users/wiser/projects/strawberry-farm/agents/prompts/full-game-director.md)
+- [agents/prompts/product-director.md](/Users/wiser/projects/strawberry-farm/agents/prompts/product-director.md)
+- [agents/prompts/game-designer.md](/Users/wiser/projects/strawberry-farm/agents/prompts/game-designer.md)
+- [agents/prompts/economy-balance-designer.md](/Users/wiser/projects/strawberry-farm/agents/prompts/economy-balance-designer.md)
+- [agents/prompts/gameplay-developer.md](/Users/wiser/projects/strawberry-farm/agents/prompts/gameplay-developer.md)
+- [agents/prompts/ui-ux-developer.md](/Users/wiser/projects/strawberry-farm/agents/prompts/ui-ux-developer.md)
+- [agents/prompts/qa-playtest-agent.md](/Users/wiser/projects/strawberry-farm/agents/prompts/qa-playtest-agent.md)
 
 ## Testes
-Todo o material de testes fica dentro da pasta `tests/`.
+Visão geral em [tests/README.md](/Users/wiser/projects/strawberry-farm/tests/README.md).
 
-Principais arquivos:
+Arquivos principais:
+- [tests/playwright/strawberry-farm.e2e.js](/Users/wiser/projects/strawberry-farm/tests/playwright/strawberry-farm.e2e.js)
+- [tests/manual/TEST_SCENARIOS.md](/Users/wiser/projects/strawberry-farm/tests/manual/TEST_SCENARIOS.md)
+- [tests/reports/](/Users/wiser/projects/strawberry-farm/tests/reports)
+- [tests/artifacts/](/Users/wiser/projects/strawberry-farm/tests/artifacts)
 
-- `tests/playwright/strawberry-farm.e2e.js`
-- `tests/docs/TEST_SCENARIOS.md`
-- `tests/docs/QA_REPORT.md`
-- `tests/docs/QA_REPORT_V2.md`
+Relatório mais recente:
+- [tests/reports/QA_REPORT_SPRINT_9.md](/Users/wiser/projects/strawberry-farm/tests/reports/QA_REPORT_SPRINT_9.md)
 
-Esse teste valida:
-- renderização inicial
-- onboarding e ajuda persistente
-- economia base
-- expansão da fazenda
-- eventos e timing
-- consistência de save/load
-- upgrade de crescimento
-- upgrade de venda
-- helper automático e persistência do helper
-- helper sem combo automático
-- prestígio, persistência e bônus permanente
-- layout desktop acima da dobra e mobile razoável
-- progressão final
-- reset do jogo
+## Execução do jogo
+Abra [public/index.html](/Users/wiser/projects/strawberry-farm/public/index.html) no navegador.
 
-Os documentos de apoio cobrem:
-- cenários manuais e critérios de cobertura
-- histórico de QA
-- validações após correções de estabilidade
-- evidências visuais geradas pela automação
-
-## Papéis do time
-O projeto também mantém agentes especializados em [AGENTS.md](/Users/wiser/projects/strawberry-farm/AGENTS.md) e no diretório [agents](/Users/wiser/projects/strawberry-farm/agents), cobrindo produto, design, economia, gameplay, UI/UX e QA/playtest.
-
-Exemplo de execução com o `playwright-skill`:
-
-```bash
-cd <caminho-do-playwright-skill>
-PROJECT_ROOT="<caminho-absoluto-do-projeto>"
-TARGET_URL="file://$PROJECT_ROOT/index.html" node run.js "$PROJECT_ROOT/tests/playwright/strawberry-farm.e2e.js"
-```
-
-Se quiser apontar para outra URL:
-
-```bash
-cd <caminho-do-playwright-skill>
-PROJECT_ROOT="<caminho-absoluto-do-projeto>"
-TARGET_URL='http://localhost:4173' node run.js "$PROJECT_ROOT/tests/playwright/strawberry-farm.e2e.js"
-```
-
-Após a execução, a evidência visual fica em um novo arquivo versionado dentro de `tests/artifacts/`, por exemplo `tests/artifacts/strawberry-farm-test-20260308-153045-123.png`.
-
-## Fora de escopo
-- multiplayer
-- backend
-- contas de usuário
-- múltiplas culturas
-- estações
-- árvores de diálogo com NPCs
-- árvores de crafting
-- simulação complexa de mercado
+Se preferir, [index.html](/Users/wiser/projects/strawberry-farm/index.html) também funciona como ponto de entrada compatível.

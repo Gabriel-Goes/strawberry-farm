@@ -1,4 +1,6 @@
-window.STRAWBERRY_CONFIG = {
+window.StrawberryFarm = window.StrawberryFarm || {};
+
+window.StrawberryFarm.config = {
   title: "Fazenda de Morangos",
   storageKey: "strawberry-farm-save",
   initialPlotCount: 9,

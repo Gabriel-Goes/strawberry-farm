@@ -1,0 +1,400 @@
+(function (SF) {
+  const game = {
+    config: SF.config,
+    elements: SF.ui.collectElements(),
+    storage: null,
+    plotElements: [],
+    debugState: {
+      randomEventsEnabled: true,
+      forcedMarketSteps: [],
+    },
+    uiState: {
+      milestoneToast: null,
+      harvestedPlots: {},
+    },
+    state: null,
+    autosaveIntervalId: null,
+    dirty: false,
+    setMessage(message) {
+      game.state.message = message;
+    },
+    commit() {
+      SF.events.updateActiveEvent(game);
+      SF.market.updateMarketState(game);
+      SF.combo.updateComboState(game);
+      SF.helper.updateHelperState(game);
+      SF.plots.updatePlotsByTime(game);
+      const goalRewards = SF.progression.applyProgressionGoals(game);
+      const prestigeUnlocked = SF.progression.maybeNotifyPrestigeUnlocked(game);
+
+      if (goalRewards.length > 0) {
+        game.setMessage(goalRewards.join(" "));
+        SF.render.showMilestoneToast(game, goalRewards[goalRewards.length - 1]);
+      } else if (prestigeUnlocked) {
+        game.setMessage(`Strawberry Knowledge disponível. Prestigie com ${SF.prestige.getPrestigeThreshold(game)} moedas.`);
+      }
+
+      game.dirty = true;
+      SF.state.saveState(game);
+      SF.render.render(game);
+    },
+    handlePlotClick(plotIndex) {
+      const plot = game.state.plots[plotIndex];
+
+      if (!plot || plotIndex >= game.state.unlockedPlotCount) {
+        return;
+      }
+
+      if (plot.state === SF.config.plotStates.empty) {
+        SF.plots.plantPlot(game, plot);
+        return;
+      }
+
+      if (plot.state === SF.config.plotStates.ready) {
+        SF.plots.harvestPlot(game, plot);
+        return;
+      }
+
+      game.setMessage("Esse morango ainda esta crescendo.");
+      SF.render.render(game);
+    },
+  };
+
+  function init() {
+    game.storage = SF.state.createStorageAdapter(SF.config.storageKey);
+    game.state = SF.state.loadState(game.storage);
+    attachEvents();
+    attachDebugHelpers();
+    SF.render.render(game);
+    startTicker();
+    startAutosave();
+  }
+
+  function attachEvents() {
+    game.elements.buySeedButton.addEventListener("click", buySeed);
+    game.elements.sellButton.addEventListener("click", sellStrawberries);
+    game.elements.resetButton.addEventListener("click", resetGame);
+    game.elements.fertilizerButton.addEventListener("click", buyFertilizerUpgrade);
+    game.elements.marketButton.addEventListener("click", buyMarketUpgrade);
+    game.elements.expandFarmButton.addEventListener("click", expandFarm);
+    game.elements.helperButton.addEventListener("click", buyHelperUpgrade);
+    game.elements.prestigeButton.addEventListener("click", prestigeFarm);
+    game.elements.helpToggleButton.addEventListener("click", toggleHelpPanel);
+    game.elements.helpDismissButton.addEventListener("click", dismissHelpPanel);
+    window.addEventListener("pagehide", flushAutosave);
+    window.addEventListener("beforeunload", flushAutosave);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        flushAutosave();
+      }
+    });
+  }
+
+  function attachDebugHelpers() {
+    window.__strawberryFarmDebug = {
+      forceEvent(eventId, durationMs = SF.config.events.durationMs) {
+        SF.events.activateEvent(game, eventId, durationMs, true);
+        game.dirty = true;
+        SF.state.saveState(game);
+        SF.render.render(game);
+      },
+      clearEvent() {
+        SF.events.clearActiveEvent(game);
+        game.dirty = true;
+        SF.state.saveState(game);
+        SF.render.render(game);
+      },
+      getState() {
+        return JSON.parse(JSON.stringify(game.state));
+      },
+      setRandomEventsEnabled(enabled) {
+        game.debugState.randomEventsEnabled = Boolean(enabled);
+      },
+      forceMilestoneToast(message) {
+        SF.render.showMilestoneToast(game, message);
+        SF.render.render(game);
+      },
+      setState(partialState) {
+        game.state = SF.state.hydrateState({ ...game.state, ...partialState });
+        game.dirty = true;
+        SF.state.saveState(game);
+        SF.render.render(game);
+      },
+      setForcedMarketSteps(steps) {
+        game.debugState.forcedMarketSteps = Array.isArray(steps) ? [...steps] : [];
+      },
+    };
+  }
+
+  function maybeTriggerRandomEvent() {
+    if (
+      !game.debugState.randomEventsEnabled ||
+      game.state.systems.activeEvent ||
+      Math.random() > SF.config.events.triggerChanceOnSell
+    ) {
+      return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * SF.config.events.definitions.length);
+    const randomEvent = SF.config.events.definitions[randomIndex];
+    SF.events.activateEvent(game, randomEvent.id, SF.config.events.durationMs);
+  }
+
+  function buySeed() {
+    const seedPrice = SF.plots.getSeedPrice(game);
+
+    if (game.state.money < seedPrice) {
+      game.setMessage("Você não tem moedas suficientes para comprar uma semente.");
+      SF.render.render(game);
+      return;
+    }
+
+    game.state.money -= seedPrice;
+    game.state.seeds += 1;
+    game.setMessage("Você comprou 1 semente.");
+    game.commit();
+  }
+
+  function sellStrawberries() {
+    if (game.state.strawberries <= 0) {
+      game.setMessage("Você não tem morangos para vender.");
+      SF.render.render(game);
+      return;
+    }
+
+    const sellPrice = SF.market.getSellPrice(game);
+    const marketBasePrice = SF.market.getMarketBasePrice(game);
+    const quantity = game.state.strawberries;
+    const baseEarnedMoney = quantity * sellPrice;
+    const prestigeBonus = SF.prestige.getPrestigeSaleBonus(game, baseEarnedMoney);
+    const earnedMoney = baseEarnedMoney + prestigeBonus;
+    game.state.money += earnedMoney;
+    game.state.strawberries = 0;
+    game.state.stats.soldTotal += quantity;
+    game.setMessage(
+      prestigeBonus > 0
+        ? `Você vendeu ${quantity} morango${quantity > 1 ? "s" : ""} por ${earnedMoney} moedas. Mercado base: ${marketBasePrice}. Conhecimento: +${prestigeBonus}.`
+        : `Você vendeu ${quantity} morango${quantity > 1 ? "s" : ""} por ${earnedMoney} moedas. Mercado base: ${marketBasePrice}.`,
+    );
+    maybeTriggerRandomEvent();
+    game.commit();
+  }
+
+  function buyFertilizerUpgrade() {
+    const upgrade = SF.config.upgrades.fertilizer;
+
+    if (game.state.upgrades.fertilizer) {
+      game.setMessage("O adubo rápido já está ativo.");
+      SF.render.render(game);
+      return;
+    }
+
+    if (game.state.money < upgrade.cost) {
+      game.setMessage("Você ainda não tem moedas suficientes para comprar o adubo rápido.");
+      SF.render.render(game);
+      return;
+    }
+
+    game.state.money -= upgrade.cost;
+    game.state.upgrades.fertilizer = true;
+    game.state.stats.upgradesPurchased += 1;
+    game.setMessage("Adubo rápido comprado. Novos plantios crescem mais rápido.");
+    game.commit();
+  }
+
+  function buyMarketUpgrade() {
+    const upgrade = SF.config.upgrades.market;
+
+    if (game.state.upgrades.market) {
+      game.setMessage("A caixa premium já está ativa.");
+      SF.render.render(game);
+      return;
+    }
+
+    if (game.state.money < upgrade.cost) {
+      game.setMessage("Você ainda não tem moedas suficientes para melhorar a venda.");
+      SF.render.render(game);
+      return;
+    }
+
+    game.state.money -= upgrade.cost;
+    game.state.upgrades.market = true;
+    game.state.stats.upgradesPurchased += 1;
+    game.setMessage("Caixa premium comprada. Cada morango vendido vale mais.");
+    game.commit();
+  }
+
+  function buyHelperUpgrade() {
+    const upgrade = SF.config.upgrades.helper;
+
+    if (game.state.upgrades.helper) {
+      game.setMessage("O Farm Helper já está ativo.");
+      SF.render.render(game);
+      return;
+    }
+
+    if (game.state.money < upgrade.cost) {
+      game.setMessage("Você ainda não tem moedas suficientes para comprar o Farm Helper.");
+      SF.render.render(game);
+      return;
+    }
+
+    game.state.money -= upgrade.cost;
+    game.state.upgrades.helper = true;
+    game.state.stats.upgradesPurchased += 1;
+    game.state.systems.helper.nextHarvestAt = Date.now() + upgrade.harvestIntervalMs;
+    game.state.systems.helper.lastActionAt = Date.now();
+    game.state.systems.helper.lastActionText = "Farm Helper ativado. Ele vai colher plantas prontas automaticamente.";
+    game.setMessage("Farm Helper comprado. Agora ele ajuda a colher canteiros prontos.");
+    game.commit();
+  }
+
+  function expandFarm() {
+    if (game.state.hasExpandedFarm) {
+      game.setMessage("Sua fazenda já está no tamanho máximo desta versão.");
+      SF.render.render(game);
+      return;
+    }
+
+    if (game.state.money < SF.config.expansion.cost) {
+      game.setMessage("Você ainda não tem moedas suficientes para expandir a fazenda.");
+      SF.render.render(game);
+      return;
+    }
+
+    game.state.money -= SF.config.expansion.cost;
+    game.state.unlockedPlotCount = SF.config.maxPlotCount;
+    game.state.hasExpandedFarm = true;
+    game.setMessage("Fazenda expandida. Agora voce tem 16 canteiros.");
+    game.commit();
+  }
+
+  function prestigeFarm() {
+    if (!SF.prestige.isPrestigeAvailable(game)) {
+      game.setMessage(`Você precisa de ${SF.prestige.getPrestigeThreshold(game)} moedas para prestigiar.`);
+      SF.render.render(game);
+      return;
+    }
+
+    const nextLevel = game.state.prestige.level + 1;
+    const nextBonusPercent = SF.prestige.getPrestigeBonusPercent(game, nextLevel);
+    const shouldPrestige = window.confirm(
+      `Prestigiar a fazenda?\n\nVocê perderá moedas, sementes, morangos, fazenda expandida, plantações, upgrades, helper, evento e combo atuais.\n\nVocê ganhará Strawberry Knowledge nível ${nextLevel} com +${nextBonusPercent}% permanente no valor total das vendas.`,
+    );
+
+    if (!shouldPrestige) {
+      game.setMessage("O prestígio foi cancelado.");
+      SF.render.render(game);
+      return;
+    }
+
+    const nextPrestigeState = {
+      level: nextLevel,
+      sellBonusMultiplier: SF.prestige.getPrestigeMultiplierForLevel(nextLevel) - 1,
+    };
+
+    game.state = SF.state.createInitialState();
+    game.state.prestige = nextPrestigeState;
+    game.state.systems.prestige.unlockShownForLevel = -1;
+    game.state.message = `Strawberry Knowledge nível ${nextLevel} desbloqueado. Suas vendas agora têm +${nextBonusPercent}% permanente.`;
+    game.uiState.milestoneToast = null;
+    SF.render.showMilestoneToast(game, `Prestígio realizado. Conhecimento nível ${nextLevel} ativo.`);
+    SF.state.saveState(game);
+    SF.render.render(game);
+  }
+
+  function resetGame() {
+    const shouldReset = window.confirm(
+      "Reiniciar todo o progresso?\n\nIsso apaga moedas, sementes, upgrades, helper, eventos, metas, plantações salvas e também o Strawberry Knowledge.",
+    );
+
+    if (!shouldReset) {
+      game.setMessage("O progresso foi mantido.");
+      SF.render.render(game);
+      return;
+    }
+
+    game.state = SF.state.createInitialState();
+    game.uiState.milestoneToast = null;
+    SF.state.saveState(game);
+    SF.render.render(game);
+  }
+
+  function toggleHelpPanel() {
+    game.state.ui.helpOpen = !game.state.ui.helpOpen;
+    game.dirty = true;
+    SF.state.saveState(game);
+    SF.render.render(game);
+  }
+
+  function dismissHelpPanel() {
+    game.state.ui.helpOpen = false;
+    game.dirty = true;
+    SF.state.saveState(game);
+    SF.render.render(game);
+  }
+
+  function startTicker() {
+    window.setInterval(() => {
+      const eventEnded = SF.events.updateActiveEvent(game);
+      const marketChanged = SF.market.updateMarketState(game);
+      const comboExpired = SF.combo.updateComboState(game);
+      const plotsReady = SF.plots.updatePlotsByTime(game);
+      const helperHarvested = SF.helper.runFarmHelper(game);
+      SF.plots.syncHarvestEffects(game);
+
+      if (eventEnded) {
+        game.setMessage("O evento terminou.");
+        game.dirty = true;
+        SF.render.render(game);
+        return;
+      }
+
+      if (marketChanged) {
+        game.setMessage(SF.market.getMarketUpdateMessage(game));
+        game.dirty = true;
+        SF.render.render(game);
+        return;
+      }
+
+      if (helperHarvested) {
+        return;
+      }
+
+      if (comboExpired) {
+        SF.render.renderLiveState(game);
+        return;
+      }
+
+      if (plotsReady) {
+        game.setMessage("Um morango está pronto para colher.");
+        game.dirty = true;
+        SF.render.render(game);
+        return;
+      }
+
+      SF.render.renderLiveState(game);
+    }, 250);
+  }
+
+  function startAutosave() {
+    game.autosaveIntervalId = window.setInterval(() => {
+      if (!game.dirty) {
+        return;
+      }
+
+      SF.state.saveState(game);
+      SF.render.render(game);
+    }, SF.config.autosaveIntervalMs);
+  }
+
+  function flushAutosave() {
+    if (!game.dirty) {
+      return;
+    }
+
+    SF.state.saveState(game);
+  }
+
+  init();
+})(window.StrawberryFarm = window.StrawberryFarm || {});

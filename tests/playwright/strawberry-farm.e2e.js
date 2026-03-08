@@ -4,7 +4,7 @@ const { pathToFileURL, fileURLToPath } = require("url");
 const { chromium } = require("playwright");
 
 const PROJECT_ROOT = resolveProjectRoot();
-const TARGET_URL = process.env.TARGET_URL || pathToFileURL(path.resolve(PROJECT_ROOT, "index.html")).href;
+const TARGET_URL = process.env.TARGET_URL || pathToFileURL(path.resolve(PROJECT_ROOT, "public/index.html")).href;
 
 const STORAGE_KEY = "strawberry-farm-save";
 const ARTIFACTS_DIR = path.resolve(PROJECT_ROOT, "tests/artifacts");
