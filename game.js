@@ -8,6 +8,7 @@ const elements = {
   seedCard: document.querySelector("#seedCard"),
   berryCard: document.querySelector("#berryCard"),
   sellPriceValue: document.querySelector("#sellPriceValue"),
+  sellPriceHint: document.querySelector("#sellPriceHint"),
   sellPriceCard: document.querySelector("#sellPriceCard"),
   growthTimeValue: document.querySelector("#growthTimeValue"),
   growthTimeCard: document.querySelector("#growthTimeCard"),
@@ -37,6 +38,13 @@ const elements = {
   eventTags: document.querySelector("#eventTags"),
   eventTimer: document.querySelector("#eventTimer"),
   eventProgressBar: document.querySelector("#eventProgressBar"),
+  marketBanner: document.querySelector("#marketBanner"),
+  marketHeadline: document.querySelector("#marketHeadline"),
+  marketSummary: document.querySelector("#marketSummary"),
+  marketEffect: document.querySelector("#marketEffect"),
+  marketPriceValue: document.querySelector("#marketPriceValue"),
+  marketChangeIndicator: document.querySelector("#marketChangeIndicator"),
+  marketTimer: document.querySelector("#marketTimer"),
   progressSummary: document.querySelector("#progressSummary"),
   goalList: document.querySelector("#goalList"),
   farmGrid: document.querySelector("#farmGrid"),
@@ -55,6 +63,7 @@ const storage = createStorageAdapter();
 const plotElements = [];
 const debugState = {
   randomEventsEnabled: true,
+  forcedMarketSteps: [],
 };
 const uiState = {
   milestoneToast: null,
@@ -118,6 +127,9 @@ function attachDebugHelpers() {
       saveState();
       render();
     },
+    setForcedMarketSteps(steps) {
+      debugState.forcedMarketSteps = Array.isArray(steps) ? [...steps] : [];
+    },
   };
 }
 
@@ -146,6 +158,12 @@ function createInitialState() {
     },
     systems: {
       activeEvent: null,
+      market: {
+        currentPrice: config.market.basePrice,
+        previousPrice: config.market.basePrice,
+        direction: "steady",
+        nextUpdateAt: Date.now() + config.market.updateIntervalMs,
+      },
       combo: {
         count: 0,
         lastHarvestAt: null,
@@ -235,6 +253,21 @@ function hydrateState(savedState) {
     nextState.systems.combo.rewardMoney = Number.isFinite(savedCombo.rewardMoney) ? savedCombo.rewardMoney : 0;
   }
 
+  const savedMarket = savedSystems?.market || savedState.market;
+
+  if (savedMarket && typeof savedMarket === "object") {
+    const nextPrice = normalizeMarketPrice(savedMarket.currentPrice);
+    nextState.systems.market.currentPrice = nextPrice;
+    nextState.systems.market.previousPrice = normalizeMarketPrice(savedMarket.previousPrice ?? nextPrice);
+    nextState.systems.market.direction = getMarketDirection(
+      nextState.systems.market.currentPrice,
+      nextState.systems.market.previousPrice,
+    );
+    nextState.systems.market.nextUpdateAt = Number.isFinite(savedMarket.nextUpdateAt)
+      ? savedMarket.nextUpdateAt
+      : Date.now() + config.market.updateIntervalMs;
+  }
+
   if (savedState.upgrades && typeof savedState.upgrades === "object") {
     nextState.upgrades.fertilizer = Boolean(savedState.upgrades.fertilizer);
     nextState.upgrades.market = Boolean(savedState.upgrades.market);
@@ -288,6 +321,7 @@ function hydrateState(savedState) {
   }
 
   updateActiveEvent(nextState);
+  updateMarketState(nextState);
   updateComboState(nextState);
   updatePlotsByTime(nextState);
   return nextState;
@@ -368,8 +402,12 @@ function getGrowthTimeMs() {
   return Math.max(3000, Math.floor(growthTime));
 }
 
+function getMarketBasePrice(targetState = state) {
+  return normalizeMarketPrice(targetState.systems.market.currentPrice);
+}
+
 function getSellPrice() {
-  let sellPrice = config.crop.sellPrice;
+  let sellPrice = getMarketBasePrice();
 
   if (state.upgrades.market) {
     sellPrice += config.upgrades.market.sellPriceBonus;
@@ -382,6 +420,64 @@ function getSellPrice() {
   }
 
   return sellPrice;
+}
+
+function normalizeMarketPrice(price) {
+  if (!Number.isFinite(price)) {
+    return config.market.basePrice;
+  }
+
+  return Math.max(config.market.minPrice, Math.min(config.market.maxPrice, Math.round(price)));
+}
+
+function getRandomMarketStep() {
+  if (debugState.forcedMarketSteps.length > 0) {
+    return debugState.forcedMarketSteps.shift();
+  }
+
+  const randomIndex = Math.floor(Math.random() * config.market.stepOptions.length);
+  return config.market.stepOptions[randomIndex];
+}
+
+function getMarketDirection(currentPrice, previousPrice) {
+  if (currentPrice > previousPrice) {
+    return "up";
+  }
+
+  if (currentPrice < previousPrice) {
+    return "down";
+  }
+
+  return "steady";
+}
+
+function updateMarketState(targetState = state) {
+  const market = targetState.systems.market;
+
+  if (!market || !Number.isFinite(market.nextUpdateAt)) {
+    return false;
+  }
+
+  let changed = false;
+  let guard = 0;
+
+  while (Date.now() >= market.nextUpdateAt && guard < 6) {
+    const previousPrice = normalizeMarketPrice(market.currentPrice);
+    const nextPrice = normalizeMarketPrice(previousPrice + getRandomMarketStep());
+
+    market.previousPrice = previousPrice;
+    market.currentPrice = nextPrice;
+    market.direction = getMarketDirection(nextPrice, previousPrice);
+    market.nextUpdateAt += config.market.updateIntervalMs;
+    changed = true;
+    guard += 1;
+  }
+
+  if (market.nextUpdateAt < Date.now()) {
+    market.nextUpdateAt = Date.now() + config.market.updateIntervalMs;
+  }
+
+  return changed;
 }
 
 function buySeed() {
@@ -407,12 +503,13 @@ function sellStrawberries() {
   }
 
   const sellPrice = getSellPrice();
+  const marketBasePrice = getMarketBasePrice();
   const quantity = state.strawberries;
   const earnedMoney = quantity * sellPrice;
   state.money += earnedMoney;
   state.strawberries = 0;
   state.stats.soldTotal += quantity;
-  setMessage(`Você vendeu morangos por ${earnedMoney} moedas.`);
+  setMessage(`Você vendeu ${quantity} morango${quantity > 1 ? "s" : ""} por ${earnedMoney} moedas. Mercado base: ${marketBasePrice}.`);
   maybeTriggerRandomEvent();
   commit();
 }
@@ -744,12 +841,20 @@ function updatePlotsByTime(targetState = state) {
 function startTicker() {
   window.setInterval(() => {
     const eventEnded = updateActiveEvent();
+    const marketChanged = updateMarketState();
     const comboExpired = updateComboState();
     const plotsReady = updatePlotsByTime();
     syncHarvestEffects();
 
     if (eventEnded) {
       setMessage("O evento terminou.");
+      dirty = true;
+      render();
+      return;
+    }
+
+    if (marketChanged) {
+      setMessage(getMarketUpdateMessage());
       dirty = true;
       render();
       return;
@@ -792,6 +897,7 @@ function flushAutosave() {
 
 function commit() {
   updateActiveEvent();
+  updateMarketState();
   updateComboState();
   updatePlotsByTime();
   const goalRewards = applyProgressionGoals();
@@ -892,6 +998,7 @@ function renderStaticState(farmMetrics = getFarmMetrics()) {
   elements.seedCount.textContent = String(state.seeds);
   elements.berryCount.textContent = String(state.strawberries);
   elements.sellPriceValue.textContent = `${getSellPrice()} moedas`;
+  elements.sellPriceHint.textContent = getSellPriceHint();
   elements.growthTimeValue.textContent = formatSeconds(getGrowthTimeMs());
   elements.plotCountValue.textContent = `${state.unlockedPlotCount}/${config.maxPlotCount}`;
   elements.statusMessage.textContent = state.message;
@@ -911,6 +1018,7 @@ function renderLiveState(farmMetrics = getFarmMetrics()) {
   renderComboStrip();
   renderMilestoneToast();
   renderEventBanner();
+  renderMarketBanner();
   renderFarmGrid(farmMetrics);
 }
 
@@ -929,6 +1037,7 @@ function renderSaveStatus() {
 function renderPrimaryActions() {
   const seedPrice = getSeedPrice();
   const activeEvent = getActiveEventDefinition();
+  const marketBasePrice = getMarketBasePrice();
   elements.buySeedButton.disabled = state.money < seedPrice;
   elements.buySeedButton.textContent = `Comprar semente (${seedPrice})`;
   elements.sellButton.disabled = state.strawberries <= 0;
@@ -948,7 +1057,10 @@ function renderPrimaryActions() {
     : `Expandir fazenda (${config.expansion.cost})`;
 
   elements.buySeedButton.classList.toggle("action-btn--highlight", Boolean(activeEvent?.seedPriceDiscount));
-  elements.sellButton.classList.toggle("action-btn--highlight", Boolean(activeEvent?.sellPriceBonus));
+  elements.sellButton.classList.toggle(
+    "action-btn--highlight",
+    Boolean(activeEvent?.sellPriceBonus) || marketBasePrice >= config.market.maxPrice,
+  );
   elements.fertilizerButton.classList.toggle("action-btn--highlight", Boolean(activeEvent?.growthMultiplier));
 }
 
@@ -990,6 +1102,24 @@ function renderEventBanner() {
   renderEventTags(activeEvent);
   elements.eventTimer.textContent = `Termina em ${formatSeconds(remainingMs)}`;
   elements.eventProgressBar.style.width = `${Math.max(0, Math.min(100, progressPercent))}%`;
+}
+
+function renderMarketBanner() {
+  const market = state.systems.market;
+  const marketBasePrice = getMarketBasePrice();
+  const finalSellPrice = getSellPrice();
+  const remainingMs = Math.max(0, market.nextUpdateAt - Date.now());
+  const activeEvent = getActiveEventDefinition();
+
+  elements.marketBanner.className = `market-banner market-banner--${market.direction}`;
+  elements.marketHeadline.textContent = getMarketHeadline();
+  elements.marketSummary.textContent = getMarketDescription();
+  elements.marketEffect.textContent = activeEvent?.sellPriceBonus
+    ? `Preço base: ${marketBasePrice} moedas. Com bônus ativos, você vende por ${finalSellPrice}.`
+    : `Preço base atual: ${marketBasePrice} moedas por morango.`;
+  elements.marketPriceValue.textContent = `${marketBasePrice} moedas`;
+  elements.marketChangeIndicator.textContent = getMarketChangeText();
+  elements.marketTimer.textContent = `Atualiza em ${formatSeconds(remainingMs)}`;
 }
 
 function renderFarmGrid(farmMetrics) {
@@ -1361,6 +1491,21 @@ function getSaveStatusText() {
   return "Salvamento automático ativo.";
 }
 
+function getSellPriceHint() {
+  const marketBasePrice = getMarketBasePrice();
+  const direction = state.systems.market.direction;
+
+  if (direction === "up") {
+    return `Mercado subiu para ${marketBasePrice}.`;
+  }
+
+  if (direction === "down") {
+    return `Mercado caiu para ${marketBasePrice}.`;
+  }
+
+  return `Mercado em ${marketBasePrice} moedas.`;
+}
+
 function getFarmMetrics() {
   const visiblePlots = getVisiblePlots();
   const readyPlots = visiblePlots.filter((plot) => plot.state === config.plotStates.ready).length;
@@ -1422,6 +1567,65 @@ function getEventEffectText(activeEvent) {
   }
 
   return "Sem bônus ativo no momento.";
+}
+
+function getMarketHeadline() {
+  const marketBasePrice = getMarketBasePrice();
+  const direction = state.systems.market.direction;
+
+  if (direction === "up") {
+    return `Preço em alta: ${marketBasePrice} moedas`;
+  }
+
+  if (direction === "down") {
+    return `Preço em baixa: ${marketBasePrice} moedas`;
+  }
+
+  return `Preço estável: ${marketBasePrice} moedas`;
+}
+
+function getMarketDescription() {
+  const marketBasePrice = getMarketBasePrice();
+
+  if (marketBasePrice === config.market.maxPrice) {
+    return "Este é um ótimo momento para vender e converter estoque em moedas.";
+  }
+
+  if (marketBasePrice === config.market.minPrice) {
+    return "O mercado está fraco. Você pode esperar alguns segundos antes de vender.";
+  }
+
+  return "O mercado muda sozinho com o tempo. Venda no melhor momento.";
+}
+
+function getMarketChangeText() {
+  const market = state.systems.market;
+  const difference = market.currentPrice - market.previousPrice;
+
+  if (difference > 0) {
+    return `▲ +${difference} desde a última virada`;
+  }
+
+  if (difference < 0) {
+    return `▼ ${difference} desde a última virada`;
+  }
+
+  return "• Sem mudança na última virada";
+}
+
+function getMarketUpdateMessage() {
+  const marketBasePrice = getMarketBasePrice();
+  const direction = state.systems.market.direction;
+
+  if (direction === "up") {
+    return `Mercado em alta. O morango agora vale ${marketBasePrice} moedas antes dos bônus.`;
+  }
+
+  if (direction === "down") {
+    return `Mercado em baixa. O morango agora vale ${marketBasePrice} moedas antes dos bônus.`;
+  }
+
+  return `Mercado estável. O morango segue valendo ${marketBasePrice} moedas antes dos bônus.`;
 }
 
 function getEventTags(activeEvent) {

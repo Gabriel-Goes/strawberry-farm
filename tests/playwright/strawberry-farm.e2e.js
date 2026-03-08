@@ -54,6 +54,22 @@ async function clearEvent(page) {
   });
 }
 
+async function setMarketState(page, { currentPrice, previousPrice = currentPrice, nextUpdateInMs = 12000, forcedSteps = [] }) {
+  await page.evaluate(
+    ({ nextPrice, lastPrice, nextUpdateMs, steps }) => {
+      const currentState = window.__strawberryFarmDebug.getState();
+      currentState.systems.market.currentPrice = nextPrice;
+      currentState.systems.market.previousPrice = lastPrice;
+      currentState.systems.market.direction =
+        nextPrice > lastPrice ? "up" : nextPrice < lastPrice ? "down" : "steady";
+      currentState.systems.market.nextUpdateAt = Date.now() + nextUpdateMs;
+      window.__strawberryFarmDebug.setForcedMarketSteps(steps);
+      window.__strawberryFarmDebug.setState(currentState);
+    },
+    { nextPrice: currentPrice, lastPrice: previousPrice, nextUpdateMs: nextUpdateInMs, steps: forcedSteps },
+  );
+}
+
 async function extendComboWindow(page, durationMs) {
   await page.evaluate((duration) => {
     const currentState = window.__strawberryFarmDebug.getState();
@@ -172,6 +188,7 @@ async function reachMoneyTarget(page, target) {
     assert((await textOf(page, "#growthTimeValue")) === "10s", "Tempo de crescimento inicial incorreto.");
     assert((await textOf(page, "#progressSummary")) === "0 de 4 metas concluídas", "Resumo inicial de metas incorreto.");
     assert((await textOf(page, "#eventTitle")) === "Nenhum evento ativo", "O banner de evento deveria iniciar vazio.");
+    assert((await textOf(page, "#marketHeadline")).includes("Preço estável"), "O banner de mercado deveria iniciar estável.");
     assert(!(await page.locator("#helpPanel").isHidden()), "O painel de ajuda deveria iniciar visível.");
 
     console.log("Cenário 1.1: ajuda rápida persistente");
@@ -182,6 +199,18 @@ async function reachMoneyTarget(page, target) {
     assert(await page.locator("#helpPanel").isHidden(), "O estado do painel de ajuda não persistiu após reload.");
     await page.click("#helpToggleButton");
     assert(!(await page.locator("#helpPanel").isHidden()), "O botão de ajuda não reabriu o painel.");
+
+    console.log("Cenário 1.2: mercado dinâmico e clareza de preço");
+    await setMarketState(page, { currentPrice: 4, previousPrice: 3, nextUpdateInMs: 700, forcedSteps: [1] });
+    assert((await textOf(page, "#sellPriceValue")) === "4 moedas", "O preço final deveria refletir o mercado atual.");
+    assert((await textOf(page, "#marketChangeIndicator")).includes("+1"), "O indicador de mercado deveria mostrar a alta.");
+    await waitForText(page, "#marketPriceValue", "5 moedas", 4000);
+    assert((await textOf(page, "#marketHeadline")).includes("alta"), "O banner deveria sinalizar mercado em alta.");
+    assert(
+      (await textOf(page, "#marketSummary")).includes("ótimo momento para vender"),
+      "A UI deveria orientar o jogador quando o preço estiver no topo.",
+    );
+    await setMarketState(page, { currentPrice: 5, previousPrice: 4, nextUpdateInMs: 30000 });
 
     console.log("Cenário 2: plantio e save/load base");
     const firstPlot = page.locator(".plot").nth(0);
@@ -194,6 +223,7 @@ async function reachMoneyTarget(page, target) {
       return plot && plot.textContent && plot.textContent.includes("Crescendo");
     });
     assert((await textOf(page, "#plotCountValue")) === "9/16", "O save/load corrompeu o tamanho base da fazenda.");
+    assert((await textOf(page, "#marketPriceValue")) === "5 moedas", "O preço de mercado não persistiu após reload.");
 
     console.log("Cenário 2.1: combo de colheita e persistência curta");
     await plantAllAvailableSeeds(page);
@@ -298,10 +328,11 @@ async function reachMoneyTarget(page, target) {
     console.log("Cenário 6: upgrade de venda e economia do evento Sol forte");
     await reachMoneyTarget(page, 14);
     await page.click("#marketButton");
+    await setMarketState(page, { currentPrice: 5, previousPrice: 4, nextUpdateInMs: 12000 });
     await page.waitForFunction(() => {
       const button = document.querySelector("#marketButton");
       const sellValue = document.querySelector("#sellPriceValue");
-      return button && button.textContent.includes("Venda melhorada") && sellValue.textContent === "5 moedas";
+      return button && button.textContent.includes("Venda melhorada") && sellValue.textContent === "7 moedas";
     });
     await ensureAtLeastOneSeed(page);
     await plantAllAvailableSeeds(page);
@@ -310,7 +341,7 @@ async function reachMoneyTarget(page, target) {
     assert(!(await page.locator("#sellButton").isDisabled()), "Era esperado ter morangos para vender antes do Sol forte.");
     await forceEvent(page, "sunshine", 5000);
     await waitForText(page, "#eventTitle", "Sol forte");
-    assert((await textOf(page, "#sellPriceValue")) === "6 moedas", "O Sol forte não aumentou o preço de venda.");
+    assert((await textOf(page, "#sellPriceValue")) === "8 moedas", "O Sol forte não aumentou o preço de venda sobre o mercado atual.");
     assert(
       (await textOf(page, "#eventEffect")).includes("+1 moeda"),
       "O efeito textual do Sol forte não ficou claro.",
@@ -320,10 +351,11 @@ async function reachMoneyTarget(page, target) {
       "O banner do Sol forte deveria destacar a venda como ação afetada.",
     );
     const moneyBeforeSunnySale = await numberOf(page, "#moneyCount");
+    const berriesBeforeSunnySale = await numberOf(page, "#berryCount");
     await page.click("#sellButton");
     assert(
-      (await numberOf(page, "#moneyCount")) >= moneyBeforeSunnySale + 6,
-      "A venda durante o Sol forte não recebeu o bônus esperado.",
+      (await numberOf(page, "#moneyCount")) === moneyBeforeSunnySale + berriesBeforeSunnySale * 8,
+      "A venda durante o Sol forte não respeitou o cálculo de mercado + upgrade + evento.",
     );
     await clearEvent(page);
     assert((await textOf(page, "#eventTitle")) === "Nenhum evento ativo", "O evento não foi limpo corretamente no modo de teste.");

@@ -5,6 +5,13 @@ window.STRAWBERRY_CONFIG = {
   maxPlotCount: 16,
   winMoney: 35,
   autosaveIntervalMs: 4000,
+  market: {
+    basePrice: 3,
+    minPrice: 2,
+    maxPrice: 5,
+    updateIntervalMs: 12000,
+    stepOptions: [-1, 0, 1],
+  },
   combo: {
     windowMs: 1800,
     thresholds: [

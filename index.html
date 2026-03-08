@@ -50,8 +50,9 @@
             <strong class="stat__value" id="berryCount">0</strong>
           </article>
           <article class="stat" id="sellPriceCard">
-            <span class="stat__label">Venda atual</span>
+            <span class="stat__label">Venda agora</span>
             <strong class="stat__value" id="sellPriceValue">3 moedas</strong>
+            <span class="stat__hint" id="sellPriceHint">Mercado estável.</span>
           </article>
           <article class="stat" id="growthTimeCard">
             <span class="stat__label">Tempo atual</span>
@@ -129,6 +130,22 @@
             <div class="event-banner__progress">
               <div class="event-banner__progress-fill" id="eventProgressBar"></div>
             </div>
+          </div>
+        </section>
+
+        <section class="market-banner market-banner--steady" id="marketBanner" aria-live="polite">
+          <div>
+            <p class="market-banner__eyebrow">Mercado do morango</p>
+            <h2 id="marketHeadline">Preço estável</h2>
+            <p class="market-banner__text" id="marketSummary">
+              O mercado muda sozinho com o tempo. Venda no melhor momento.
+            </p>
+            <p class="market-banner__effect" id="marketEffect">Preço base atual: 3 moedas por morango.</p>
+          </div>
+          <div class="market-banner__aside">
+            <div class="market-banner__price" id="marketPriceValue">3 moedas</div>
+            <div class="market-banner__change" id="marketChangeIndicator">Sem mudança</div>
+            <div class="market-banner__timer" id="marketTimer">Atualiza em 12s</div>
           </div>
         </section>
 
