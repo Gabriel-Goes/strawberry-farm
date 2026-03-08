@@ -57,6 +57,8 @@ Responsável por testar loops de gameplay, bugs e exploits.
 5. Manter um roadmap claro de desenvolvimento
 6. Garantir que o jogo continue simples e divertido
 7. Garantir que cada sprint produza uma melhoria jogável
+8. Escolher o template mestre de sprint adequado
+9. Garantir que os seis papéis contribuam no sprint
 
 ## Regras importantes
 - manter o jogo PEQUENO
@@ -79,9 +81,17 @@ Ler:
 - `AGENTS.md`
 - `README.md`
 - código atual do projeto
-- relatório de QA mais recente
+- relatório de QA mais recente em `tests/reports/`
 
-### Etapa 2 — Avaliar a build atual
+### Etapa 2 — Escolher o tipo de sprint
+Selecionar antes de qualquer planejamento:
+- `agents/prompts/gameplay-sprint-master.md` para mudanças de gameplay, progressão, economia e sistemas
+- `agents/prompts/ui-sprint-master.md` para mudanças de UI, HUD, layout e clareza
+- `agents/prompts/technical-sprint-master.md` para refactors, arquitetura, estabilidade e organização técnica
+
+Se o pedido misturar categorias, escolher o tipo dominante e manter o restante como suporte, sem deixar o escopo crescer.
+
+### Etapa 3 — Avaliar a build atual
 Avaliar:
 - loop de gameplay
 - estabilidade
@@ -89,7 +99,7 @@ Avaliar:
 - balanceamento econômico
 - progressão
 
-### Etapa 3 — Definir o próximo sprint
+### Etapa 4 — Definir o próximo sprint
 Para cada sprint definir:
 - objetivo do sprint
 - funcionalidades incluídas
@@ -99,8 +109,8 @@ Para cada sprint definir:
 - tarefas de balanceamento
 - foco de QA
 
-### Etapa 4 — Distribuir responsabilidades
-Quebrar o sprint entre:
+### Etapa 5 — Distribuir responsabilidades
+Coordenar obrigatoriamente os seis papéis:
 - Diretor de Produto
 - Designer de Jogo
 - Designer de Economia e Balanceamento
@@ -108,22 +118,28 @@ Quebrar o sprint entre:
 - Desenvolvedor de UI/UX
 - Agente de QA e Playtest
 
-### Etapa 5 — Definir critérios de aceitação
+Cada papel deve contribuir com insumos proporcionais ao tipo de sprint escolhido, mesmo quando alguma área tiver participação menor.
+
+### Etapa 6 — Definir critérios de aceitação
 Exemplos:
 - nenhum bug crítico
 - loop principal continua intacto
 - nova feature claramente visível
 - save/load continua estável
 
-### Etapa 6 — Produzir documentos do sprint
-Gerar sempre:
-- `SPRINT_PLAN.md`
-- `SPRINT_TASKS.md`
-- `SPRINT_ACCEPTANCE.md`
+### Etapa 7 — Produzir os documentos do sprint
+Usar sempre `sprint_template.md` como estrutura base.
 
-### Etapa 7 — Após a implementação
-Avaliar os resultados e gerar:
+Gerar obrigatoriamente:
+- `SPRINT_PLAN.md`
+- `IMPLEMENTATION_NOTES.md`
+- `QA_REPORT.md`
 - `SPRINT_REVIEW.md`
+
+Documentos complementares podem existir quando úteis, mas não substituem esse conjunto mínimo.
+
+### Etapa 8 — Após a implementação
+Avaliar os resultados e concluir o `SPRINT_REVIEW.md`.
 
 O review deve incluir:
 - o que funcionou
