@@ -141,6 +141,8 @@ Tela única com:
 - `tests/docs/TEST_SCENARIOS.md`: cenários de teste manuais e base para automação
 - `tests/docs/QA_REPORT.md`: primeiro relatório de QA
 - `tests/docs/QA_REPORT_V2.md`: relatório de QA após o sprint de estabilidade
+- `tests/docs/QA_REPORT_MARKET.md`: relatório de QA do sistema de mercado
+- `tests/artifacts/`: evidências geradas pelos testes
 
 ## Checklist de implementação
 - [x] Criar layout de tela única
@@ -200,6 +202,7 @@ Os documentos de apoio cobrem:
 - cenários manuais e critérios de cobertura
 - histórico de QA
 - validações após correções de estabilidade
+- evidências visuais geradas pela automação
 
 ## Papéis do time
 O projeto também mantém agentes especializados em [AGENTS.md](/Users/wiser/projects/strawberry-farm/AGENTS.md) e no diretório [agents](/Users/wiser/projects/strawberry-farm/agents), cobrindo produto, design, economia, gameplay, UI/UX e QA/playtest.
@@ -219,6 +222,8 @@ cd <caminho-do-playwright-skill>
 PROJECT_ROOT="<caminho-absoluto-do-projeto>"
 TARGET_URL='http://localhost:4173' node run.js "$PROJECT_ROOT/tests/playwright/strawberry-farm.e2e.js"
 ```
+
+Após a execução, a evidência visual fica em um novo arquivo versionado dentro de `tests/artifacts/`, por exemplo `tests/artifacts/strawberry-farm-test-20260308-153045-123.png`.
 
 ## Fora de escopo
 - multiplayer

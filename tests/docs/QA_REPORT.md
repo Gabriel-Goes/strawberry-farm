@@ -39,4 +39,4 @@
 
 ## Evidência
 - teste executado em `file://`
-- screenshot final: `/tmp/strawberry-farm-test.png`
+- screenshot final: `tests/artifacts/strawberry-farm-test.png`

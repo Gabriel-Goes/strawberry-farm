@@ -1,4 +1,5 @@
 const path = require("path");
+const fs = require("fs");
 const { pathToFileURL } = require("url");
 const { chromium } = require("playwright");
 
@@ -7,6 +8,11 @@ const TARGET_URL =
   pathToFileURL(path.resolve(__dirname, "../../index.html")).href;
 
 const STORAGE_KEY = "strawberry-farm-save";
+const ARTIFACTS_DIR = path.resolve(__dirname, "../artifacts");
+const SUCCESS_SCREENSHOT_PATH = path.join(ARTIFACTS_DIR, "strawberry-farm-test.png");
+const ERROR_SCREENSHOT_PATH = path.join(ARTIFACTS_DIR, "strawberry-farm-test-error.png");
+
+fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 
 function assert(condition, message) {
   if (!condition) {
@@ -382,21 +388,21 @@ async function reachMoneyTarget(page, target) {
     assert((await textOf(page, "#progressSummary")) === "0 de 4 metas concluídas", "O reset não limpou as metas.");
 
     await page.screenshot({
-      path: "/tmp/strawberry-farm-test.png",
+      path: SUCCESS_SCREENSHOT_PATH,
       fullPage: true,
     });
 
     console.log("✅ QA principal passou para economia, combo, eventos e save/load.");
-    console.log("📸 Screenshot salva em /tmp/strawberry-farm-test.png");
+    console.log(`📸 Screenshot salva em ${SUCCESS_SCREENSHOT_PATH}`);
   } catch (error) {
     console.error("❌ Falha no teste:", error.message);
     await page
       .screenshot({
-        path: "/tmp/strawberry-farm-test-error.png",
+        path: ERROR_SCREENSHOT_PATH,
         fullPage: true,
       })
       .catch(() => {});
-    console.error("📸 Screenshot de erro salva em /tmp/strawberry-farm-test-error.png");
+    console.error(`📸 Screenshot de erro salva em ${ERROR_SCREENSHOT_PATH}`);
     throw error;
   } finally {
     await browser.close();
