@@ -602,6 +602,53 @@ h1 {
   font-weight: 700;
 }
 
+.prestige-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(137, 76, 51, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.prestige-panel--available {
+  background: linear-gradient(135deg, rgba(255, 248, 228, 0.95), rgba(243, 179, 71, 0.24));
+  border-color: rgba(243, 179, 71, 0.42);
+}
+
+.prestige-panel__eyebrow {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.prestige-panel h2,
+.prestige-panel__text,
+.prestige-panel__meta {
+  margin: 0;
+}
+
+.prestige-panel h2 {
+  font-size: 1.3rem;
+}
+
+.prestige-panel__text {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.prestige-panel__meta {
+  margin-top: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
 .farm-section {
   margin-top: 22px;
 }
@@ -991,6 +1038,11 @@ h1 {
 
   .market-banner {
     flex-direction: column;
+  }
+
+  .prestige-panel {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .combo-strip {

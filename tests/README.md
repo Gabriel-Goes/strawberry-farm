@@ -6,6 +6,7 @@
 - `docs/QA_REPORT.md`: relatório de QA do ciclo de polimento
 - `docs/QA_REPORT_V2.md`: relatório de QA após o sprint de estabilidade
 - `docs/QA_REPORT_MARKET.md`: relatório de QA do sistema de mercado
+- `docs/QA_REPORT_SPRINT_7.md`: relatório de QA do sistema de prestígio
 - `artifacts/`: screenshots e evidências geradas pelos testes
 
 ## Objetivo

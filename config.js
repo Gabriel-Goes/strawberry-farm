@@ -5,6 +5,12 @@ window.STRAWBERRY_CONFIG = {
   maxPlotCount: 16,
   winMoney: 35,
   autosaveIntervalMs: 4000,
+  prestige: {
+    label: "Strawberry Knowledge",
+    baseThresholdMoney: 120,
+    sellBonusPerLevel: 0.2,
+    description: "Reinicie a fazenda para ganhar +20% permanente no valor total das vendas por nível.",
+  },
   market: {
     basePrice: 3,
     minPrice: 2,

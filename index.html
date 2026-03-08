@@ -67,6 +67,11 @@
             <strong class="stat__value stat__value--small" id="helperStatusValue">Desligado</strong>
             <span class="stat__hint" id="helperStatusHint">Compre para colher 1 canteiro pronto automaticamente.</span>
           </article>
+          <article class="stat" id="prestigeCard">
+            <span class="stat__label">Conhecimento</span>
+            <strong class="stat__value stat__value--small" id="prestigeLevelValue">Nível 0</strong>
+            <span class="stat__hint" id="prestigeBonusHint">Bônus permanente: +0% nas vendas.</span>
+          </article>
         </section>
 
         <section class="status-bar">
@@ -161,6 +166,18 @@
             <div class="market-banner__change" id="marketChangeIndicator">Sem mudança</div>
             <div class="market-banner__timer" id="marketTimer">Atualiza em 12s</div>
           </div>
+        </section>
+
+        <section class="prestige-panel" id="prestigePanel" aria-live="polite">
+          <div>
+            <p class="prestige-panel__eyebrow">Progressão permanente</p>
+            <h2 id="prestigePanelTitle">Strawberry Knowledge</h2>
+            <p class="prestige-panel__text" id="prestigePanelDescription">
+              Alcance o requisito de moedas para reiniciar a fazenda e ganhar bônus permanente nas vendas.
+            </p>
+            <p class="prestige-panel__meta" id="prestigeThresholdText">Próximo prestígio em 120 moedas.</p>
+          </div>
+          <button class="action-btn action-btn--ghost" id="prestigeButton" type="button">Prestigiar fazenda</button>
         </section>
 
         <section class="farm-section">

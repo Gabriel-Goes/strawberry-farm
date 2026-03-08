@@ -52,6 +52,7 @@ Recursos implementados:
 - compra de sementes
 - sistema de moedas
 - helper de automação leve para colheita
+- sistema de prestígio `Strawberry Knowledge`
 - salvamento e carregamento com `localStorage`
 - salvamento automático com status visível
 - retomada do crescimento após recarregar a página
@@ -73,6 +74,7 @@ Recursos implementados:
 - mercado dinâmico simples
 - indicador do `Farm Helper` no HUD
 - colheita automática visual pelo `Farm Helper`
+- progresso permanente por prestígio
 - meta de progressão final de `35` moedas
 - mensagem de vitória na mesma tela
 
@@ -97,6 +99,10 @@ Recursos implementados:
 - O `Farm Helper` custa `18` moedas.
 - O `Farm Helper` colhe `1` canteiro pronto a cada `3.5` segundos.
 - O `Farm Helper` não planta, não vende e não ativa combo.
+- O primeiro prestígio exige `120` moedas.
+- Cada novo prestígio aumenta o requisito em `120` moedas.
+- Cada nível de `Strawberry Knowledge` dá `+20%` permanente no valor total das vendas.
+- Ao prestigiar, o jogador perde moedas, sementes, morangos, expansão, upgrades, helper, plantações, evento e combo atuais.
 - Cada canteiro pode estar em um de três estados:
   - vazio
   - crescendo
@@ -119,9 +125,11 @@ Tela única com:
 - contador de tempo atual de crescimento
 - contador de tamanho atual da fazenda
 - contador de status do `Farm Helper`
+- contador de nível de `Strawberry Knowledge`
 - mensagem de status
 - status de autosave
 - faixa de atividade do `Farm Helper`
+- painel de prestígio com requisito atual e botão opcional
 - toast visual para meta concluída
 - barra de progresso da meta final
 - barra de progresso de canteiros prontos
@@ -137,6 +145,7 @@ Tela única com:
 - card de upgrade `Caixa premium`
 - card de expansão `Fazenda 4x4`
 - card de upgrade `Farm Helper`
+- painel `Strawberry Knowledge`
 - painel de metas de progressão
 - botão `Comprar semente`
 - botão `Vender morangos`
@@ -154,6 +163,7 @@ Tela única com:
 - `tests/docs/QA_REPORT_V2.md`: relatório de QA após o sprint de estabilidade
 - `tests/docs/QA_REPORT_MARKET.md`: relatório de QA do sistema de mercado
 - `tests/docs/QA_REPORT_SPRINT_6.md`: relatório de QA do helper de automação
+- `tests/docs/QA_REPORT_SPRINT_7.md`: relatório de QA do sistema de prestígio
 - `tests/artifacts/`: evidências geradas pelos testes
 
 ## Checklist de implementação
@@ -179,6 +189,7 @@ Tela única com:
 - [x] Adicionar upgrade de crescimento
 - [x] Adicionar upgrade de venda
 - [x] Adicionar helper de colheita automática
+- [x] Adicionar sistema de prestígio simples
 - [x] Adicionar expansão para 4x4
 - [x] Adicionar 3 eventos aleatórios simples
 - [x] Exibir banner visual de evento ativo
@@ -210,6 +221,7 @@ Esse teste valida:
 - upgrade de venda
 - helper automático e persistência do helper
 - helper sem combo automático
+- prestígio, persistência e bônus permanente
 - progressão final
 - reset do jogo
 

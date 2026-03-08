@@ -17,6 +17,9 @@ const elements = {
   helperCard: document.querySelector("#helperCard"),
   helperStatusValue: document.querySelector("#helperStatusValue"),
   helperStatusHint: document.querySelector("#helperStatusHint"),
+  prestigeCard: document.querySelector("#prestigeCard"),
+  prestigeLevelValue: document.querySelector("#prestigeLevelValue"),
+  prestigeBonusHint: document.querySelector("#prestigeBonusHint"),
   goalStatus: document.querySelector("#goalStatus"),
   helpPanel: document.querySelector("#helpPanel"),
   helpToggleButton: document.querySelector("#helpToggleButton"),
@@ -51,6 +54,10 @@ const elements = {
   marketPriceValue: document.querySelector("#marketPriceValue"),
   marketChangeIndicator: document.querySelector("#marketChangeIndicator"),
   marketTimer: document.querySelector("#marketTimer"),
+  prestigePanel: document.querySelector("#prestigePanel"),
+  prestigePanelTitle: document.querySelector("#prestigePanelTitle"),
+  prestigePanelDescription: document.querySelector("#prestigePanelDescription"),
+  prestigeThresholdText: document.querySelector("#prestigeThresholdText"),
   progressSummary: document.querySelector("#progressSummary"),
   goalList: document.querySelector("#goalList"),
   farmGrid: document.querySelector("#farmGrid"),
@@ -61,6 +68,7 @@ const elements = {
   marketButton: document.querySelector("#marketButton"),
   expandFarmButton: document.querySelector("#expandFarmButton"),
   helperButton: document.querySelector("#helperButton"),
+  prestigeButton: document.querySelector("#prestigeButton"),
   fertilizerDescription: document.querySelector("#fertilizerDescription"),
   marketDescription: document.querySelector("#marketDescription"),
   expansionDescription: document.querySelector("#expansionDescription"),
@@ -95,6 +103,7 @@ function attachEvents() {
   elements.marketButton.addEventListener("click", buyMarketUpgrade);
   elements.expandFarmButton.addEventListener("click", expandFarm);
   elements.helperButton.addEventListener("click", buyHelperUpgrade);
+  elements.prestigeButton.addEventListener("click", prestigeFarm);
   elements.helpToggleButton.addEventListener("click", toggleHelpPanel);
   elements.helpDismissButton.addEventListener("click", dismissHelpPanel);
   window.addEventListener("pagehide", flushAutosave);
@@ -166,6 +175,7 @@ function createInitialState() {
       upgradesPurchased: 0,
       eventsTriggered: 0,
     },
+    prestige: getInitialPrestigeState(),
     systems: {
       activeEvent: null,
       market: {
@@ -182,6 +192,9 @@ function createInitialState() {
         rewardMoney: 0,
       },
       helper: getInitialHelperState(),
+      prestige: {
+        unlockShownForLevel: -1,
+      },
       lastSavedAt: null,
     },
     message: "Plante seus primeiros morangos.",
@@ -192,6 +205,13 @@ function createInitialState() {
       readyAt: null,
       growthDurationMs: null,
     })),
+  };
+}
+
+function getInitialPrestigeState() {
+  return {
+    level: 0,
+    sellBonusMultiplier: 0,
   };
 }
 
@@ -318,6 +338,23 @@ function hydrateState(savedState) {
     nextState.stats.eventsTriggered = Number.isFinite(savedState.stats.eventsTriggered)
       ? savedState.stats.eventsTriggered
       : nextState.stats.eventsTriggered;
+  }
+
+  if (savedState.prestige && typeof savedState.prestige === "object") {
+    nextState.prestige.level = Number.isFinite(savedState.prestige.level)
+      ? Math.max(0, savedState.prestige.level)
+      : 0;
+    nextState.prestige.sellBonusMultiplier = Number.isFinite(savedState.prestige.sellBonusMultiplier)
+      ? Math.max(0, savedState.prestige.sellBonusMultiplier)
+      : getPrestigeMultiplierForLevel(nextState.prestige.level) - 1;
+  }
+
+  const savedPrestigeSystem = savedSystems?.prestige || savedState.prestigeSystem;
+
+  if (savedPrestigeSystem && typeof savedPrestigeSystem === "object") {
+    nextState.systems.prestige.unlockShownForLevel = Number.isFinite(savedPrestigeSystem.unlockShownForLevel)
+      ? savedPrestigeSystem.unlockShownForLevel
+      : -1;
   }
 
   const savedHelper = savedSystems?.helper || savedState.helper;
@@ -464,6 +501,38 @@ function getSellPrice() {
   return sellPrice;
 }
 
+function getPrestigeMultiplierForLevel(level) {
+  return 1 + Math.max(0, level) * config.prestige.sellBonusPerLevel;
+}
+
+function getPrestigeSaleMultiplier(targetState = state) {
+  return 1 + Math.max(0, targetState.prestige.sellBonusMultiplier);
+}
+
+function getPrestigeBonusPercent(level = state.prestige.level) {
+  if (level === state.prestige.level) {
+    return Math.round(state.prestige.sellBonusMultiplier * 100);
+  }
+
+  return Math.round((getPrestigeMultiplierForLevel(level) - 1) * 100);
+}
+
+function getPrestigeThreshold(targetState = state) {
+  return config.prestige.baseThresholdMoney * (Math.max(0, targetState.prestige.level) + 1);
+}
+
+function isPrestigeAvailable(targetState = state) {
+  return targetState.money >= getPrestigeThreshold(targetState);
+}
+
+function getPrestigeSaleBonus(baseEarned) {
+  if (state.prestige.level <= 0 || baseEarned <= 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(baseEarned * getPrestigeSaleMultiplier()) - baseEarned);
+}
+
 function normalizeMarketPrice(price) {
   if (!Number.isFinite(price)) {
     return config.market.basePrice;
@@ -547,11 +616,17 @@ function sellStrawberries() {
   const sellPrice = getSellPrice();
   const marketBasePrice = getMarketBasePrice();
   const quantity = state.strawberries;
-  const earnedMoney = quantity * sellPrice;
+  const baseEarnedMoney = quantity * sellPrice;
+  const prestigeBonus = getPrestigeSaleBonus(baseEarnedMoney);
+  const earnedMoney = baseEarnedMoney + prestigeBonus;
   state.money += earnedMoney;
   state.strawberries = 0;
   state.stats.soldTotal += quantity;
-  setMessage(`Você vendeu ${quantity} morango${quantity > 1 ? "s" : ""} por ${earnedMoney} moedas. Mercado base: ${marketBasePrice}.`);
+  setMessage(
+    prestigeBonus > 0
+      ? `Você vendeu ${quantity} morango${quantity > 1 ? "s" : ""} por ${earnedMoney} moedas. Mercado base: ${marketBasePrice}. Conhecimento: +${prestigeBonus}.`
+      : `Você vendeu ${quantity} morango${quantity > 1 ? "s" : ""} por ${earnedMoney} moedas. Mercado base: ${marketBasePrice}.`,
+  );
   maybeTriggerRandomEvent();
   commit();
 }
@@ -645,9 +720,43 @@ function expandFarm() {
   commit();
 }
 
+function prestigeFarm() {
+  if (!isPrestigeAvailable()) {
+    setMessage(`Você precisa de ${getPrestigeThreshold()} moedas para prestigiar.`);
+    render();
+    return;
+  }
+
+  const nextLevel = state.prestige.level + 1;
+  const nextBonusPercent = getPrestigeBonusPercent(nextLevel);
+  const shouldPrestige = window.confirm(
+    `Prestigiar a fazenda?\n\nVocê perderá moedas, sementes, morangos, fazenda expandida, plantações, upgrades, helper, evento e combo atuais.\n\nVocê ganhará Strawberry Knowledge nível ${nextLevel} com +${nextBonusPercent}% permanente no valor total das vendas.`,
+  );
+
+  if (!shouldPrestige) {
+    setMessage("O prestígio foi cancelado.");
+    render();
+    return;
+  }
+
+  const nextPrestigeState = {
+    level: nextLevel,
+    sellBonusMultiplier: getPrestigeMultiplierForLevel(nextLevel) - 1,
+  };
+
+  state = createInitialState();
+  state.prestige = nextPrestigeState;
+  state.systems.prestige.unlockShownForLevel = -1;
+  state.message = `Strawberry Knowledge nível ${nextLevel} desbloqueado. Suas vendas agora têm +${nextBonusPercent}% permanente.`;
+  uiState.milestoneToast = null;
+  showMilestoneToast(`Prestígio realizado. Conhecimento nível ${nextLevel} ativo.`);
+  saveState();
+  render();
+}
+
 function resetGame() {
   const shouldReset = window.confirm(
-    "Reiniciar todo o progresso?\n\nIsso apaga moedas, sementes, upgrades, eventos, metas e plantações salvas.",
+    "Reiniciar todo o progresso?\n\nIsso apaga moedas, sementes, upgrades, helper, eventos, metas, plantações salvas e também o Strawberry Knowledge.",
   );
 
   if (!shouldReset) {
@@ -1011,10 +1120,13 @@ function commit() {
   updateHelperState();
   updatePlotsByTime();
   const goalRewards = applyProgressionGoals();
+  const prestigeUnlocked = maybeNotifyPrestigeUnlocked();
 
   if (goalRewards.length > 0) {
     setMessage(goalRewards.join(" "));
     showMilestoneToast(goalRewards[goalRewards.length - 1]);
+  } else if (prestigeUnlocked) {
+    setMessage(`Strawberry Knowledge disponível. Prestigie com ${getPrestigeThreshold()} moedas.`);
   }
 
   dirty = true;
@@ -1086,6 +1198,22 @@ function grantGoalReward(reward) {
   return rewardParts.join(" ");
 }
 
+function maybeNotifyPrestigeUnlocked() {
+  if (!isPrestigeAvailable()) {
+    return false;
+  }
+
+  if (state.systems.prestige.unlockShownForLevel === state.prestige.level) {
+    return false;
+  }
+
+  state.systems.prestige.unlockShownForLevel = state.prestige.level;
+  showMilestoneToast(
+    `Strawberry Knowledge disponível. Prestigie para ganhar +${getPrestigeBonusPercent(state.prestige.level + 1)}% permanente nas vendas.`,
+  );
+  return true;
+}
+
 function setMessage(message) {
   state.message = message;
 }
@@ -1117,6 +1245,8 @@ function renderStaticState(farmMetrics = getFarmMetrics()) {
   renderStatHighlights();
   renderPrimaryActions();
   renderHelperCard();
+  renderPrestigeCard();
+  renderPrestigePanel();
   renderHelpPanel();
   renderUpgradeCards();
   renderProgression();
@@ -1187,7 +1317,7 @@ function renderUpgradeCards() {
     ? `Ativo: novos plantios levam ${formatSeconds(getGrowthTimeMs())}.`
     : config.upgrades.fertilizer.description;
   elements.marketDescription.textContent = state.upgrades.market
-    ? `Ativo: cada morango vendido vale ${getSellPrice()} moedas${getActiveEventDefinition()?.sellPriceBonus ? " durante o evento." : "."}`
+    ? `Ativo: cada morango vendido vale ${getSellPrice()} moedas${state.prestige.level > 0 ? ` antes do bônus permanente de +${getPrestigeBonusPercent()}%.` : getActiveEventDefinition()?.sellPriceBonus ? " durante o evento." : "."}`
     : config.upgrades.market.description;
   elements.expansionDescription.textContent = state.hasExpandedFarm
     ? "Ativo: todos os 16 canteiros estão liberados."
@@ -1236,8 +1366,10 @@ function renderMarketBanner() {
   elements.marketHeadline.textContent = getMarketHeadline();
   elements.marketSummary.textContent = getMarketDescription();
   elements.marketEffect.textContent = activeEvent?.sellPriceBonus
-    ? `Preço base: ${marketBasePrice} moedas. Com bônus ativos, você vende por ${finalSellPrice}.`
-    : `Preço base atual: ${marketBasePrice} moedas por morango.`;
+    ? `Preço base: ${marketBasePrice} moedas. Com bônus ativos, você vende por ${finalSellPrice}${state.prestige.level > 0 ? ` e ainda recebe +${getPrestigeBonusPercent()}% no total.` : "."}`
+    : state.prestige.level > 0
+      ? `Preço base atual: ${marketBasePrice} moedas por morango. Strawberry Knowledge: +${getPrestigeBonusPercent()}% no total vendido.`
+      : `Preço base atual: ${marketBasePrice} moedas por morango.`;
   elements.marketPriceValue.textContent = `${marketBasePrice} moedas`;
   elements.marketChangeIndicator.textContent = getMarketChangeText();
   elements.marketTimer.textContent = `Atualiza em ${formatSeconds(remainingMs)}`;
@@ -1358,6 +1490,31 @@ function renderHelperCard() {
       ? `Próxima verificação em ${formatSeconds(Math.max(0, nextHarvestAt - Date.now()))}.`
       : "Compre para colher 1 canteiro pronto automaticamente.";
   elements.helperCard.classList.toggle("stat--highlight", isActive);
+}
+
+function renderPrestigeCard() {
+  elements.prestigeLevelValue.textContent = `Nível ${state.prestige.level}`;
+  elements.prestigeBonusHint.textContent = `Bônus permanente: +${getPrestigeBonusPercent()}% nas vendas.`;
+  elements.prestigeCard.classList.toggle("stat--highlight", isPrestigeAvailable());
+}
+
+function renderPrestigePanel() {
+  const currentThreshold = getPrestigeThreshold();
+  const isAvailable = isPrestigeAvailable();
+  const nextBonusPercent = getPrestigeBonusPercent(state.prestige.level + 1);
+
+  elements.prestigePanel.classList.toggle("prestige-panel--available", isAvailable);
+  elements.prestigePanelTitle.textContent = `Strawberry Knowledge`;
+  elements.prestigePanelDescription.textContent = isAvailable
+    ? `Prestígio disponível. Reinicie a fazenda para subir ao nível ${state.prestige.level + 1} e ganhar +${nextBonusPercent}% permanente nas vendas.`
+    : config.prestige.description;
+  elements.prestigeThresholdText.textContent = isAvailable
+    ? `Disponível agora com ${state.money} moedas.`
+    : `Próximo prestígio em ${currentThreshold} moedas.`;
+  elements.prestigeButton.disabled = !isAvailable;
+  elements.prestigeButton.textContent = isAvailable
+    ? `Prestigiar fazenda (+${nextBonusPercent}%)`
+    : `Prestígio bloqueado (${currentThreshold})`;
 }
 
 function renderHelperStrip() {
@@ -1649,16 +1806,17 @@ function getSaveStatusText() {
 function getSellPriceHint() {
   const marketBasePrice = getMarketBasePrice();
   const direction = state.systems.market.direction;
+  const prestigeText = state.prestige.level > 0 ? ` Conhecimento: +${getPrestigeBonusPercent()}% no total.` : "";
 
   if (direction === "up") {
-    return `Mercado subiu para ${marketBasePrice}.`;
+    return `Mercado subiu para ${marketBasePrice}.${prestigeText}`;
   }
 
   if (direction === "down") {
-    return `Mercado caiu para ${marketBasePrice}.`;
+    return `Mercado caiu para ${marketBasePrice}.${prestigeText}`;
   }
 
-  return `Mercado em ${marketBasePrice} moedas.`;
+  return `Mercado em ${marketBasePrice} moedas.${prestigeText}`;
 }
 
 function getFarmMetrics() {
@@ -1703,6 +1861,11 @@ function renderStatHighlights() {
 
   const activeEvent = getActiveEventDefinition();
 
+  if (isPrestigeAvailable()) {
+    elements.prestigeCard.classList.add("stat--highlight");
+    elements.moneyCard.classList.add("stat--highlight");
+  }
+
   if (!activeEvent) {
     return;
   }
@@ -1731,6 +1894,7 @@ function clearStatHighlights() {
     elements.growthTimeCard,
     elements.plotCountCard,
     elements.helperCard,
+    elements.prestigeCard,
   ].forEach((element) => element.classList.remove("stat--highlight"));
 }
 

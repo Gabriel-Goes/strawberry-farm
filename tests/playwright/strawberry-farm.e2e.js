@@ -256,6 +256,8 @@ async function reachMoneyTarget(page, target) {
     assert((await textOf(page, "#sellPriceValue")) === "3 moedas", "Preço de venda inicial incorreto.");
     assert((await textOf(page, "#growthTimeValue")) === "10s", "Tempo de crescimento inicial incorreto.");
     assert((await textOf(page, "#helperStatusValue")) === "Desligado", "O helper deveria iniciar desligado.");
+    assert((await textOf(page, "#prestigeLevelValue")) === "Nível 0", "O prestígio deveria iniciar no nível 0.");
+    assert((await textOf(page, "#prestigeBonusHint")).includes("+0%"), "O bônus inicial de prestígio deveria ser 0%.");
     assert((await textOf(page, "#progressSummary")) === "0 de 4 metas concluídas", "Resumo inicial de metas incorreto.");
     assert((await textOf(page, "#eventTitle")) === "Nenhum evento ativo", "O banner de evento deveria iniciar vazio.");
     assert((await textOf(page, "#marketHeadline")).includes("Preço estável"), "O banner de mercado deveria iniciar estável.");
@@ -484,15 +486,60 @@ async function reachMoneyTarget(page, target) {
     const comboAfterHelperReload = await getComboSnapshot(page);
     assert(comboAfterHelperReload.count === 0, "O helper não deveria recriar combo após reload.");
 
-    console.log("Cenário 8: progressão final e consistência geral");
+    console.log("Cenário 8: Strawberry Knowledge, reset opcional e persistência");
+    await clearEvent(page);
+    await reachMoneyTarget(page, 120);
+    assert(
+      (await textOf(page, "#prestigeThresholdText")).includes("Disponível agora"),
+      "O painel de prestígio deveria indicar disponibilidade ao atingir o requisito.",
+    );
+    assert(
+      (await textOf(page, "#milestoneToast")).includes("Strawberry Knowledge") ||
+        (await textOf(page, "#prestigePanelDescription")).includes("Prestígio disponível"),
+      "A UI deveria deixar claro que o prestígio foi desbloqueado.",
+    );
+    assert(!(await page.locator("#prestigeButton").isDisabled()), "O botão de prestígio deveria ficar ativo.");
+    page.once("dialog", (dialog) => {
+      dialog.accept().catch(() => {});
+    });
+    await page.click("#prestigeButton");
+    await waitForText(page, "#statusMessage", "Strawberry Knowledge nível 1");
+    assert((await textOf(page, "#moneyCount")) === "6", "O prestígio deveria reiniciar o dinheiro.");
+    assert((await textOf(page, "#seedCount")) === "3", "O prestígio deveria reiniciar as sementes.");
+    assert((await textOf(page, "#plotCountValue")) === "9/16", "O prestígio deveria reiniciar a fazenda para 3x3.");
+    assert((await textOf(page, "#helperStatusValue")) === "Desligado", "O prestígio deveria remover o helper.");
+    assert((await textOf(page, "#prestigeLevelValue")) === "Nível 1", "O nível de prestígio não subiu após o reset.");
+    assert((await textOf(page, "#prestigeBonusHint")).includes("+20%"), "O bônus permanente não foi aplicado após o prestígio.");
+    assert((await textOf(page, "#prestigeThresholdText")).includes("240"), "O próximo requisito de prestígio deveria escalar após o nível 1.");
+
+    await page.reload({ waitUntil: "load" });
+    await disableRandomEvents(page);
+    assert((await textOf(page, "#prestigeLevelValue")) === "Nível 1", "O nível de prestígio não persistiu após reload.");
+    assert((await textOf(page, "#prestigeBonusHint")).includes("+20%"), "O bônus de prestígio não persistiu após reload.");
+
+    await setMarketState(page, { currentPrice: 3, previousPrice: 3, nextUpdateInMs: 30000 });
+    const moneyBeforePrestigeSale = await numberOf(page, "#moneyCount");
+    await page.locator(".plot").nth(0).click();
+    await waitForAllGrowingPlots(page, 12000);
+    await harvestAllReadyPlots(page);
+    await page.click("#sellButton");
+    assert(
+      (await numberOf(page, "#moneyCount")) === moneyBeforePrestigeSale + 4,
+      "A venda após o prestígio deveria aplicar o bônus permanente de +20%.",
+    );
+
+    console.log("Cenário 9: progressão após prestígio");
     await reachMoneyTarget(page, 35);
+    await page.click("#expandFarmButton");
+    await page.click("#fertilizerButton");
+    await page.click("#marketButton");
     assert(
       (await textOf(page, "#goalStatus")) === "Você construiu uma pequena fazenda de morangos!",
       "A mensagem final de vitória não apareceu ao alcançar 35 moedas.",
     );
     assert((await textOf(page, "#progressSummary")) === "4 de 4 metas concluídas", "As metas finais não foram concluídas.");
 
-    console.log("Cenário 9: reset e restauração completa");
+    console.log("Cenário 10: reset e restauração completa");
     page.once("dialog", (dialog) => {
       dialog.accept().catch(() => {});
     });
@@ -504,13 +551,15 @@ async function reachMoneyTarget(page, target) {
     assert((await textOf(page, "#growthTimeValue")) === "10s", "O reset não restaurou o tempo base.");
     assert((await textOf(page, "#eventTitle")) === "Nenhum evento ativo", "O reset não limpou o evento ativo.");
     assert((await textOf(page, "#progressSummary")) === "0 de 4 metas concluídas", "O reset não limpou as metas.");
+    assert((await textOf(page, "#prestigeLevelValue")) === "Nível 0", "O reset total deveria limpar o prestígio.");
+    assert((await textOf(page, "#prestigeBonusHint")).includes("+0%"), "O reset total deveria limpar o bônus permanente.");
 
     await page.screenshot({
       path: SUCCESS_SCREENSHOT_PATH,
       fullPage: true,
     });
 
-    console.log("✅ QA principal passou para economia, helper, combo, eventos e save/load.");
+    console.log("✅ QA principal passou para economia, helper, prestígio, combo, eventos e save/load.");
     console.log(`📸 Screenshot salva em ${SUCCESS_SCREENSHOT_PATH}`);
   } catch (error) {
     console.error("❌ Falha no teste:", error.message);
