@@ -9,10 +9,24 @@ const TARGET_URL =
 
 const STORAGE_KEY = "strawberry-farm-save";
 const ARTIFACTS_DIR = path.resolve(__dirname, "../artifacts");
-const SUCCESS_SCREENSHOT_PATH = path.join(ARTIFACTS_DIR, "strawberry-farm-test.png");
-const ERROR_SCREENSHOT_PATH = path.join(ARTIFACTS_DIR, "strawberry-farm-test-error.png");
+const RUN_ID = createRunId();
+const SUCCESS_SCREENSHOT_PATH = path.join(ARTIFACTS_DIR, `strawberry-farm-test-${RUN_ID}.png`);
+const ERROR_SCREENSHOT_PATH = path.join(ARTIFACTS_DIR, `strawberry-farm-test-error-${RUN_ID}.png`);
 
 fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+
+function createRunId() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+
+  return `${year}${month}${day}-${hours}${minutes}${seconds}-${milliseconds}`;
+}
 
 function assert(condition, message) {
   if (!condition) {

@@ -53,4 +53,4 @@
 
 ## Evidência
 - teste Playwright executado em `file://`
-- screenshot final: `tests/artifacts/strawberry-farm-test.png`
+- screenshot final: `tests/artifacts/strawberry-farm-test-YYYYMMDD-HHMMSS-sss.png`

@@ -21,5 +21,6 @@ TARGET_URL="file://$PROJECT_ROOT/index.html" node run.js "$PROJECT_ROOT/tests/pl
 ```
 
 ## Evidências
-- o teste principal salva a screenshot final em `tests/artifacts/strawberry-farm-test.png`
-- em caso de falha, a screenshot de erro fica em `tests/artifacts/strawberry-farm-test-error.png`
+- o teste principal salva a screenshot final em um arquivo versionado no formato `tests/artifacts/strawberry-farm-test-YYYYMMDD-HHMMSS-sss.png`
+- em caso de falha, a screenshot de erro fica em um arquivo versionado no formato `tests/artifacts/strawberry-farm-test-error-YYYYMMDD-HHMMSS-sss.png`
+- cada execução gera um novo registro e não sobrescreve a evidência anterior
