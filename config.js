@@ -5,6 +5,13 @@ window.STRAWBERRY_CONFIG = {
   maxPlotCount: 16,
   winMoney: 35,
   autosaveIntervalMs: 4000,
+  combo: {
+    windowMs: 1800,
+    thresholds: [
+      { count: 3, moneyBonus: 1 },
+      { count: 5, moneyBonus: 2 },
+    ],
+  },
   crop: {
     name: "Morango",
     growthTimeMs: 10000,

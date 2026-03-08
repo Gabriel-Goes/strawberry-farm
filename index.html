@@ -67,6 +67,20 @@
           <p id="statusMessage" aria-live="polite">Plante seus primeiros morangos.</p>
         </section>
 
+        <section class="combo-strip" id="comboStrip" aria-live="polite" hidden>
+          <div>
+            <p class="combo-strip__eyebrow">Combo de colheita</p>
+            <strong class="combo-strip__title" id="comboTitle">Combo x2</strong>
+            <p class="combo-strip__text" id="comboText">Colha canteiros prontos em sequência para ganhar bônus.</p>
+          </div>
+          <div class="combo-strip__aside">
+            <div class="combo-strip__timer" id="comboTimer">1s</div>
+            <div class="combo-strip__progress">
+              <div class="combo-strip__progress-fill" id="comboProgressBar"></div>
+            </div>
+          </div>
+        </section>
+
         <section class="milestone-toast" id="milestoneToast" aria-live="polite" hidden>
           <strong class="milestone-toast__title">Meta concluída</strong>
           <p class="milestone-toast__text" id="milestoneToastText"></p>
@@ -108,6 +122,7 @@
             <h2 id="eventTitle">Nenhum evento ativo</h2>
             <p class="event-banner__text" id="eventDescription">Venda morangos para ter chance de ativar um evento curto.</p>
             <p class="event-banner__effect" id="eventEffect">Sem bônus ativo no momento.</p>
+            <div class="event-banner__tags" id="eventTags" hidden></div>
           </div>
           <div class="event-banner__aside">
             <div class="event-banner__timer" id="eventTimer">Aguardando</div>
@@ -139,7 +154,7 @@
             <p class="upgrade-card__text" id="fertilizerDescription">
               Reduz o tempo de crescimento em 25%.
             </p>
-            <button class="action-btn" id="fertilizerButton" type="button">Comprar adubo (12)</button>
+            <button class="action-btn" id="fertilizerButton" type="button">Comprar adubo (10)</button>
           </article>
 
           <article class="upgrade-card">
@@ -148,7 +163,7 @@
             <p class="upgrade-card__text" id="marketDescription">
               Cada morango vendido rende +2 moedas.
             </p>
-            <button class="action-btn" id="marketButton" type="button">Melhorar venda (15)</button>
+            <button class="action-btn" id="marketButton" type="button">Melhorar venda (14)</button>
           </article>
 
           <article class="upgrade-card">
@@ -157,7 +172,7 @@
             <p class="upgrade-card__text" id="expansionDescription">
               Libera mais 7 canteiros e amplia a produção.
             </p>
-            <button class="action-btn" id="expandFarmButton" type="button">Expandir fazenda (12)</button>
+            <button class="action-btn" id="expandFarmButton" type="button">Expandir fazenda (10)</button>
           </article>
         </section>
 

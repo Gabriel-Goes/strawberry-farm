@@ -18,6 +18,11 @@ const elements = {
   helpToggleButton: document.querySelector("#helpToggleButton"),
   helpDismissButton: document.querySelector("#helpDismissButton"),
   statusMessage: document.querySelector("#statusMessage"),
+  comboStrip: document.querySelector("#comboStrip"),
+  comboTitle: document.querySelector("#comboTitle"),
+  comboText: document.querySelector("#comboText"),
+  comboTimer: document.querySelector("#comboTimer"),
+  comboProgressBar: document.querySelector("#comboProgressBar"),
   milestoneToast: document.querySelector("#milestoneToast"),
   milestoneToastText: document.querySelector("#milestoneToastText"),
   saveStatus: document.querySelector("#saveStatus"),
@@ -29,6 +34,7 @@ const elements = {
   eventTitle: document.querySelector("#eventTitle"),
   eventDescription: document.querySelector("#eventDescription"),
   eventEffect: document.querySelector("#eventEffect"),
+  eventTags: document.querySelector("#eventTags"),
   eventTimer: document.querySelector("#eventTimer"),
   eventProgressBar: document.querySelector("#eventProgressBar"),
   progressSummary: document.querySelector("#progressSummary"),
@@ -52,6 +58,7 @@ const debugState = {
 };
 const uiState = {
   milestoneToast: null,
+  harvestedPlots: {},
 };
 let state = loadState();
 let autosaveIntervalId = null;
@@ -74,6 +81,11 @@ function attachEvents() {
   elements.helpDismissButton.addEventListener("click", dismissHelpPanel);
   window.addEventListener("pagehide", flushAutosave);
   window.addEventListener("beforeunload", flushAutosave);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      flushAutosave();
+    }
+  });
 }
 
 function attachDebugHelpers() {
@@ -100,6 +112,12 @@ function attachDebugHelpers() {
       showMilestoneToast(message);
       render();
     },
+    setState(partialState) {
+      state = hydrateState({ ...state, ...partialState });
+      dirty = true;
+      saveState();
+      render();
+    },
   };
 }
 
@@ -110,7 +128,6 @@ function createInitialState() {
     strawberries: config.startingState.strawberries,
     unlockedPlotCount: config.initialPlotCount,
     hasExpandedFarm: false,
-    activeEvent: null,
     upgrades: {
       fertilizer: false,
       market: false,
@@ -127,7 +144,17 @@ function createInitialState() {
       upgradesPurchased: 0,
       eventsTriggered: 0,
     },
-    lastSavedAt: null,
+    systems: {
+      activeEvent: null,
+      combo: {
+        count: 0,
+        lastHarvestAt: null,
+        expiresAt: null,
+        lastRewardedThreshold: 0,
+        rewardMoney: 0,
+      },
+      lastSavedAt: null,
+    },
     message: "Plante seus primeiros morangos.",
     plots: Array.from({ length: config.maxPlotCount }, (_, index) => ({
       id: index,
@@ -169,24 +196,43 @@ function hydrateState(savedState) {
     ? savedState.strawberries
     : nextState.strawberries;
   nextState.message = typeof savedState.message === "string" ? savedState.message : nextState.message;
-  nextState.lastSavedAt = Number.isFinite(savedState.lastSavedAt) ? savedState.lastSavedAt : null;
+  const savedSystems = savedState.systems && typeof savedState.systems === "object" ? savedState.systems : null;
+  nextState.systems.lastSavedAt = Number.isFinite(savedSystems?.lastSavedAt)
+    ? savedSystems.lastSavedAt
+    : Number.isFinite(savedState.lastSavedAt)
+      ? savedState.lastSavedAt
+      : null;
   nextState.unlockedPlotCount = Number.isFinite(savedState.unlockedPlotCount)
     ? Math.max(config.initialPlotCount, Math.min(config.maxPlotCount, savedState.unlockedPlotCount))
     : nextState.unlockedPlotCount;
   nextState.hasExpandedFarm = Boolean(savedState.hasExpandedFarm) || nextState.unlockedPlotCount === config.maxPlotCount;
 
-  if (savedState.activeEvent && typeof savedState.activeEvent === "object") {
-    const eventDefinition = getEventDefinition(savedState.activeEvent.id);
+  const savedActiveEvent = savedSystems?.activeEvent || savedState.activeEvent;
 
-    if (eventDefinition && Number.isFinite(savedState.activeEvent.endsAt)) {
-      nextState.activeEvent = {
+  if (savedActiveEvent && typeof savedActiveEvent === "object") {
+    const eventDefinition = getEventDefinition(savedActiveEvent.id);
+
+    if (eventDefinition && Number.isFinite(savedActiveEvent.endsAt)) {
+      nextState.systems.activeEvent = {
         id: eventDefinition.id,
-        endsAt: savedState.activeEvent.endsAt,
-        durationMs: Number.isFinite(savedState.activeEvent.durationMs)
-          ? savedState.activeEvent.durationMs
+        endsAt: savedActiveEvent.endsAt,
+        durationMs: Number.isFinite(savedActiveEvent.durationMs)
+          ? savedActiveEvent.durationMs
           : config.events.durationMs,
       };
     }
+  }
+
+  const savedCombo = savedSystems?.combo || savedState.combo;
+
+  if (savedCombo && typeof savedCombo === "object") {
+    nextState.systems.combo.count = Number.isFinite(savedCombo.count) ? Math.max(0, savedCombo.count) : 0;
+    nextState.systems.combo.lastHarvestAt = Number.isFinite(savedCombo.lastHarvestAt) ? savedCombo.lastHarvestAt : null;
+    nextState.systems.combo.expiresAt = Number.isFinite(savedCombo.expiresAt) ? savedCombo.expiresAt : null;
+    nextState.systems.combo.lastRewardedThreshold = Number.isFinite(savedCombo.lastRewardedThreshold)
+      ? savedCombo.lastRewardedThreshold
+      : 0;
+    nextState.systems.combo.rewardMoney = Number.isFinite(savedCombo.rewardMoney) ? savedCombo.rewardMoney : 0;
   }
 
   if (savedState.upgrades && typeof savedState.upgrades === "object") {
@@ -242,12 +288,13 @@ function hydrateState(savedState) {
   }
 
   updateActiveEvent(nextState);
+  updateComboState(nextState);
   updatePlotsByTime(nextState);
   return nextState;
 }
 
 function saveState() {
-  state.lastSavedAt = Date.now();
+  state.systems.lastSavedAt = Date.now();
   storage.setItem(config.storageKey, JSON.stringify(state));
   dirty = false;
   renderSaveStatus();
@@ -292,11 +339,11 @@ function getVisiblePlots(targetState = state) {
 }
 
 function getActiveEventDefinition(targetState = state) {
-  if (!targetState.activeEvent) {
+  if (!targetState.systems.activeEvent) {
     return null;
   }
 
-  return getEventDefinition(targetState.activeEvent.id);
+  return getEventDefinition(targetState.systems.activeEvent.id);
 }
 
 function getSeedPrice() {
@@ -505,18 +552,87 @@ function plantPlot(plot) {
 }
 
 function harvestPlot(plot) {
+  const comboSummary = applyHarvestCombo();
   plot.state = config.plotStates.empty;
   plot.plantedAt = null;
   plot.readyAt = null;
   plot.growthDurationMs = null;
   state.strawberries += config.crop.harvestYield;
   state.stats.harvestedTotal += config.crop.harvestYield;
-  setMessage("Você colheu 1 morango.");
+  markPlotHarvested(plot.id);
+
+  if (comboSummary.bonusMoney > 0) {
+    state.money += comboSummary.bonusMoney;
+    setMessage(`Você colheu 1 morango. Combo x${comboSummary.count}: +${comboSummary.bonusMoney} moeda bônus.`);
+  } else if (comboSummary.count >= 2) {
+    setMessage(`Você colheu 1 morango. Combo x${comboSummary.count} ativo.`);
+  } else {
+    setMessage("Você colheu 1 morango.");
+  }
+
   commit();
 }
 
+function applyHarvestCombo() {
+  const now = Date.now();
+  const combo = state.systems.combo;
+  const comboStillActive = Number.isFinite(combo.expiresAt) && now <= combo.expiresAt;
+
+  if (comboStillActive) {
+    combo.count += 1;
+  } else {
+    combo.count = 1;
+    combo.lastRewardedThreshold = 0;
+    combo.rewardMoney = 0;
+  }
+
+  combo.lastHarvestAt = now;
+  combo.expiresAt = now + config.combo.windowMs;
+
+  const unlockedThreshold = getUnlockedComboThreshold(combo.count, combo.lastRewardedThreshold);
+  const bonusMoney = unlockedThreshold ? unlockedThreshold.moneyBonus : 0;
+
+  if (unlockedThreshold) {
+    combo.lastRewardedThreshold = unlockedThreshold.count;
+    combo.rewardMoney = bonusMoney;
+  } else if (!comboStillActive) {
+    combo.rewardMoney = 0;
+  }
+
+  return {
+    count: combo.count,
+    bonusMoney,
+  };
+}
+
+function getUnlockedComboThreshold(count, lastRewardedThreshold) {
+  return (
+    [...config.combo.thresholds]
+      .sort((left, right) => left.count - right.count)
+      .find((threshold) => count >= threshold.count && threshold.count > lastRewardedThreshold) || null
+  );
+}
+
+function markPlotHarvested(plotId) {
+  uiState.harvestedPlots[plotId] = Date.now() + 450;
+}
+
+function syncHarvestEffects() {
+  const now = Date.now();
+
+  Object.keys(uiState.harvestedPlots).forEach((plotId) => {
+    if (uiState.harvestedPlots[plotId] <= now) {
+      delete uiState.harvestedPlots[plotId];
+    }
+  });
+}
+
 function maybeTriggerRandomEvent() {
-  if (!debugState.randomEventsEnabled || state.activeEvent || Math.random() > config.events.triggerChanceOnSell) {
+  if (
+    !debugState.randomEventsEnabled ||
+    state.systems.activeEvent ||
+    Math.random() > config.events.triggerChanceOnSell
+  ) {
     return;
   }
 
@@ -532,7 +648,7 @@ function activateEvent(eventId, durationMs, isForced = false) {
     return;
   }
 
-  state.activeEvent = {
+  state.systems.activeEvent = {
     id: eventDefinition.id,
     endsAt: Date.now() + durationMs,
     durationMs,
@@ -567,20 +683,45 @@ function accelerateGrowingPlots(remainingMultiplier) {
 }
 
 function clearActiveEvent() {
-  state.activeEvent = null;
+  state.systems.activeEvent = null;
 }
 
 function updateActiveEvent(targetState = state) {
-  if (!targetState.activeEvent) {
+  if (!targetState.systems.activeEvent) {
     return false;
   }
 
-  if (Date.now() < targetState.activeEvent.endsAt) {
+  if (Date.now() < targetState.systems.activeEvent.endsAt) {
     return false;
   }
 
-  targetState.activeEvent = null;
+  targetState.systems.activeEvent = null;
   return true;
+}
+
+function updateComboState(targetState = state) {
+  const combo = targetState.systems.combo;
+
+  if (!combo || !Number.isFinite(combo.expiresAt)) {
+    return false;
+  }
+
+  if (Date.now() < combo.expiresAt) {
+    return false;
+  }
+
+  resetCombo(targetState);
+  return true;
+}
+
+function resetCombo(targetState = state) {
+  targetState.systems.combo = {
+    count: 0,
+    lastHarvestAt: null,
+    expiresAt: null,
+    lastRewardedThreshold: 0,
+    rewardMoney: 0,
+  };
 }
 
 function updatePlotsByTime(targetState = state) {
@@ -603,12 +744,19 @@ function updatePlotsByTime(targetState = state) {
 function startTicker() {
   window.setInterval(() => {
     const eventEnded = updateActiveEvent();
+    const comboExpired = updateComboState();
     const plotsReady = updatePlotsByTime();
+    syncHarvestEffects();
 
     if (eventEnded) {
       setMessage("O evento terminou.");
       dirty = true;
       render();
+      return;
+    }
+
+    if (comboExpired) {
+      renderLiveState();
       return;
     }
 
@@ -644,6 +792,7 @@ function flushAutosave() {
 
 function commit() {
   updateActiveEvent();
+  updateComboState();
   updatePlotsByTime();
   const goalRewards = applyProgressionGoals();
 
@@ -727,7 +876,9 @@ function setMessage(message) {
 
 function render() {
   updateActiveEvent();
+  updateComboState();
   updatePlotsByTime();
+  syncHarvestEffects();
   syncMilestoneToast();
 
   const farmMetrics = getFarmMetrics();
@@ -754,8 +905,10 @@ function renderStaticState(farmMetrics = getFarmMetrics()) {
 }
 
 function renderLiveState(farmMetrics = getFarmMetrics()) {
+  syncHarvestEffects();
   syncMilestoneToast();
   renderProgressIndicators(farmMetrics);
+  renderComboStrip();
   renderMilestoneToast();
   renderEventBanner();
   renderFarmGrid(farmMetrics);
@@ -775,6 +928,7 @@ function renderSaveStatus() {
 
 function renderPrimaryActions() {
   const seedPrice = getSeedPrice();
+  const activeEvent = getActiveEventDefinition();
   elements.buySeedButton.disabled = state.money < seedPrice;
   elements.buySeedButton.textContent = `Comprar semente (${seedPrice})`;
   elements.sellButton.disabled = state.strawberries <= 0;
@@ -792,6 +946,10 @@ function renderPrimaryActions() {
   elements.expandFarmButton.textContent = state.hasExpandedFarm
     ? "Fazenda expandida"
     : `Expandir fazenda (${config.expansion.cost})`;
+
+  elements.buySeedButton.classList.toggle("action-btn--highlight", Boolean(activeEvent?.seedPriceDiscount));
+  elements.sellButton.classList.toggle("action-btn--highlight", Boolean(activeEvent?.sellPriceBonus));
+  elements.fertilizerButton.classList.toggle("action-btn--highlight", Boolean(activeEvent?.growthMultiplier));
 }
 
 function renderUpgradeCards() {
@@ -809,24 +967,27 @@ function renderUpgradeCards() {
 function renderEventBanner() {
   const activeEvent = getActiveEventDefinition();
 
-  if (!activeEvent || !state.activeEvent) {
+  if (!activeEvent || !state.systems.activeEvent) {
     elements.eventBanner.className = "event-banner event-banner--idle";
     elements.eventTitle.textContent = "Nenhum evento ativo";
     elements.eventDescription.textContent =
       "Venda morangos para ter chance de ativar um evento curto.";
     elements.eventEffect.textContent = "Sem bônus ativo no momento.";
+    elements.eventTags.hidden = true;
+    elements.eventTags.innerHTML = "";
     elements.eventTimer.textContent = "Aguardando";
     elements.eventProgressBar.style.width = "0%";
     return;
   }
 
-  const remainingMs = Math.max(0, state.activeEvent.endsAt - Date.now());
+  const remainingMs = Math.max(0, state.systems.activeEvent.endsAt - Date.now());
   const totalDurationMs = getEventDurationMs(activeEvent);
   const progressPercent = totalDurationMs > 0 ? (remainingMs / totalDurationMs) * 100 : 0;
   elements.eventBanner.className = `event-banner ${activeEvent.accentClass}`;
   elements.eventTitle.textContent = activeEvent.title;
   elements.eventDescription.textContent = activeEvent.description;
   elements.eventEffect.textContent = getEventEffectText(activeEvent);
+  renderEventTags(activeEvent);
   elements.eventTimer.textContent = `Termina em ${formatSeconds(remainingMs)}`;
   elements.eventProgressBar.style.width = `${Math.max(0, Math.min(100, progressPercent))}%`;
 }
@@ -851,11 +1012,13 @@ function renderFarmGrid(farmMetrics) {
     plotElement.badge.textContent = getPlotBadge(plot);
     plotElement.emoji.textContent = getPlotEmoji(plot);
     plotElement.name.textContent = getPlotName(plot);
+    plotElement.stage.textContent = getPlotStageText(plot);
     plotElement.timer.textContent = getPlotTimerText(plot);
     plotElement.hint.textContent = getPlotHint(plot);
     plotElement.progressFill.style.width = `${progress}%`;
     plotElement.progressTrack.hidden = plot.state !== config.plotStates.growing;
     plotElement.button.classList.toggle("plot--attention", plot.state === config.plotStates.ready && farmMetrics.readyPlots > 0);
+    plotElement.button.classList.toggle("plot--harvested", Boolean(uiState.harvestedPlots[plot.id]));
   });
 }
 
@@ -878,6 +1041,9 @@ function createFarmGrid() {
     const name = document.createElement("div");
     name.className = "plot__name";
 
+    const stage = document.createElement("div");
+    stage.className = "plot__stage";
+
     const timer = document.createElement("div");
     timer.className = "plot__timer";
 
@@ -891,18 +1057,56 @@ function createFarmGrid() {
     const hint = document.createElement("div");
     hint.className = "plot__hint";
 
-    plotButton.append(badge, emoji, name, timer, progressTrack, hint);
+    plotButton.append(badge, emoji, name, stage, timer, progressTrack, hint);
     elements.farmGrid.append(plotButton);
     plotElements.push({
       button: plotButton,
       badge,
       emoji,
       name,
+      stage,
       timer,
       progressTrack,
       progressFill,
       hint,
     });
+  });
+}
+
+function renderComboStrip() {
+  const combo = state.systems.combo;
+  const isActive = combo.count >= 2 && Number.isFinite(combo.expiresAt) && Date.now() < combo.expiresAt;
+
+  elements.comboStrip.hidden = !isActive;
+
+  if (!isActive) {
+    return;
+  }
+
+  const remainingMs = Math.max(0, combo.expiresAt - Date.now());
+  const progressPercent = (remainingMs / config.combo.windowMs) * 100;
+  const nextThreshold = getNextComboThreshold(combo.count);
+  const rewardText = combo.rewardMoney > 0 ? ` +${combo.rewardMoney} moeda bônus` : "";
+
+  elements.comboTitle.textContent = `Combo x${combo.count}${rewardText}`;
+  elements.comboText.textContent = nextThreshold
+    ? `Colha outro canteiro em sequência para buscar o combo x${nextThreshold.count}.`
+    : "Combo máximo deste sprint alcançado.";
+  elements.comboTimer.textContent = `Expira em ${formatSeconds(remainingMs)}`;
+  elements.comboProgressBar.style.width = `${Math.max(0, Math.min(100, progressPercent))}%`;
+}
+
+function renderEventTags(activeEvent) {
+  const tags = getEventTags(activeEvent);
+
+  elements.eventTags.hidden = tags.length === 0;
+  elements.eventTags.innerHTML = "";
+
+  tags.forEach((tag) => {
+    const tagElement = document.createElement("span");
+    tagElement.className = "event-banner__tag";
+    tagElement.textContent = tag;
+    elements.eventTags.append(tagElement);
   });
 }
 
@@ -1071,6 +1275,28 @@ function getPlotBadge(plot) {
   return "Plantar";
 }
 
+function getPlotStageText(plot) {
+  if (plot.state === config.plotStates.empty) {
+    return "Pronto para plantar";
+  }
+
+  if (plot.state === config.plotStates.ready) {
+    return "Madura";
+  }
+
+  const progress = getPlotProgress(plot);
+
+  if (progress < 34) {
+    return "Brotando";
+  }
+
+  if (progress < 67) {
+    return "Crescendo";
+  }
+
+  return "Quase pronto";
+}
+
 function getPlotTimerText(plot) {
   if (plot.state === config.plotStates.growing && Number.isFinite(plot.readyAt)) {
     const remainingMs = Math.max(0, plot.readyAt - Date.now());
@@ -1116,7 +1342,7 @@ function formatSeconds(durationMs) {
 }
 
 function getPlotLabel(plot, index) {
-  return `Canteiro ${index + 1}: ${getPlotName(plot)}. ${getPlotTimerText(plot)}. ${getPlotHint(plot)}`;
+  return `Canteiro ${index + 1}: ${getPlotName(plot)}. Etapa: ${getPlotStageText(plot)}. ${getPlotTimerText(plot)}. ${getPlotHint(plot)}`;
 }
 
 function getSaveStatusText() {
@@ -1128,8 +1354,8 @@ function getSaveStatusText() {
     return "Salvando automaticamente...";
   }
 
-  if (Number.isFinite(state.lastSavedAt)) {
-    return `Salvo automaticamente às ${formatClock(state.lastSavedAt)}.`;
+  if (Number.isFinite(state.systems.lastSavedAt)) {
+    return `Salvo automaticamente às ${formatClock(state.systems.lastSavedAt)}.`;
   }
 
   return "Salvamento automático ativo.";
@@ -1198,12 +1424,38 @@ function getEventEffectText(activeEvent) {
   return "Sem bônus ativo no momento.";
 }
 
+function getEventTags(activeEvent) {
+  const tags = [];
+
+  if (activeEvent.sellPriceBonus) {
+    tags.push("Afeta vendas");
+  }
+
+  if (activeEvent.seedPriceDiscount) {
+    tags.push("Afeta compra de sementes");
+  }
+
+  if (activeEvent.growthMultiplier) {
+    tags.push("Afeta crescimento");
+  }
+
+  if (activeEvent.activePlotRemainingMultiplier) {
+    tags.push("Acelera canteiros já plantados");
+  }
+
+  return tags;
+}
+
 function getEventDurationMs(eventDefinition) {
-  if (!state.activeEvent || !eventDefinition) {
+  if (!state.systems.activeEvent || !eventDefinition) {
     return config.events.durationMs;
   }
 
-  return state.activeEvent.durationMs || config.events.durationMs;
+  return state.systems.activeEvent.durationMs || config.events.durationMs;
+}
+
+function getNextComboThreshold(count) {
+  return config.combo.thresholds.find((threshold) => threshold.count > count) || null;
 }
 
 function formatClock(timestamp) {

@@ -54,6 +54,18 @@ async function clearEvent(page) {
   });
 }
 
+async function extendComboWindow(page, durationMs) {
+  await page.evaluate((duration) => {
+    const currentState = window.__strawberryFarmDebug.getState();
+
+    if (currentState.systems?.combo) {
+      currentState.systems.combo.expiresAt = Date.now() + duration;
+      currentState.systems.combo.lastHarvestAt = Date.now();
+      window.__strawberryFarmDebug.setState(currentState);
+    }
+  }, durationMs);
+}
+
 async function buySeedsUntilFull(page) {
   while (!(await page.locator("#buySeedButton").isDisabled())) {
     await page.click("#buySeedButton");
@@ -183,6 +195,22 @@ async function reachMoneyTarget(page, target) {
     });
     assert((await textOf(page, "#plotCountValue")) === "9/16", "O save/load corrompeu o tamanho base da fazenda.");
 
+    console.log("Cenário 2.1: combo de colheita e persistência curta");
+    await plantAllAvailableSeeds(page);
+    await waitForAllGrowingPlots(page);
+    const moneyBeforeCombo = await numberOf(page, "#moneyCount");
+    await harvestAllReadyPlots(page);
+    await waitForText(page, "#comboTitle", "Combo x3");
+    assert(!(await page.locator("#comboStrip").isHidden()), "O combo ativo deveria aparecer na interface.");
+    assert(
+      (await numberOf(page, "#moneyCount")) >= moneyBeforeCombo + 1,
+      "O combo de colheita não concedeu a moeda bônus esperada.",
+    );
+    await extendComboWindow(page, 5000);
+    await page.reload({ waitUntil: "load" });
+    await disableRandomEvents(page);
+    assert(!(await page.locator("#comboStrip").isHidden()), "O estado do combo ativo não persistiu após reload.");
+
     console.log("Cenário 3: expansão da fazenda para 4x4");
     await reachMoneyTarget(page, 10);
     await page.click("#expandFarmButton");
@@ -211,6 +239,10 @@ async function reachMoneyTarget(page, target) {
     assert(
       (await textOf(page, "#eventEffect")).includes("sementes por 1 moeda"),
       "O efeito textual da Feira local não ficou claro.",
+    );
+    assert(
+      (await textOf(page, "#eventBanner")).includes("Afeta compra de sementes"),
+      "O banner do evento deveria destacar a ação afetada.",
     );
     const moneyBeforeDiscountSeed = await numberOf(page, "#moneyCount");
     await page.click("#buySeedButton");
@@ -242,6 +274,10 @@ async function reachMoneyTarget(page, target) {
     assert(
       (await textOf(page, "#eventEffect")).includes("6s"),
       "O efeito textual da Chuva leve não refletiu o novo tempo.",
+    );
+    assert(
+      (await textOf(page, "#eventBanner")).includes("Afeta crescimento"),
+      "O banner da Chuva leve deveria explicar o impacto no crescimento.",
     );
     await ensureAtLeastOneSeed(page);
     await page.locator(".plot").nth(0).click();
@@ -279,6 +315,10 @@ async function reachMoneyTarget(page, target) {
       (await textOf(page, "#eventEffect")).includes("+1 moeda"),
       "O efeito textual do Sol forte não ficou claro.",
     );
+    assert(
+      (await textOf(page, "#eventBanner")).includes("Afeta vendas"),
+      "O banner do Sol forte deveria destacar a venda como ação afetada.",
+    );
     const moneyBeforeSunnySale = await numberOf(page, "#moneyCount");
     await page.click("#sellButton");
     assert(
@@ -314,7 +354,7 @@ async function reachMoneyTarget(page, target) {
       fullPage: true,
     });
 
-    console.log("✅ QA principal passou para economia, eventos e save/load.");
+    console.log("✅ QA principal passou para economia, combo, eventos e save/load.");
     console.log("📸 Screenshot salva em /tmp/strawberry-farm-test.png");
   } catch (error) {
     console.error("❌ Falha no teste:", error.message);
