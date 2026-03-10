@@ -144,6 +144,7 @@ async function installLegacySaveFixture(page) {
       state: index === 0 ? "growing" : "empty",
       plantedAt: index === 0 ? now : null,
       readyAt: index === 0 ? now + growthDurationMs : null,
+      rottenAt: null,
       growthDurationMs: index === 0 ? growthDurationMs : null,
     }));
     delete currentState.saveVersion;
@@ -280,6 +281,7 @@ async function preparePostPrestigeProgression(page) {
       state: "empty",
       plantedAt: null,
       readyAt: null,
+      rottenAt: null,
       growthDurationMs: null,
     }));
     window.__strawberryFarmDebug.setState(currentState);
@@ -505,6 +507,7 @@ async function reachMoneyTarget(page, target) {
         state: index < 3 ? "ready" : "empty",
         plantedAt: null,
         readyAt: null,
+        rottenAt: index < 3 ? Date.now() + 5000 : null,
         growthDurationMs: null,
       }));
       window.__strawberryFarmDebug.setState(currentState);
@@ -525,6 +528,44 @@ async function reachMoneyTarget(page, target) {
     await page.reload({ waitUntil: "load" });
     await disableRandomEvents(page);
     assert(!(await page.locator("#comboStrip").isHidden()), "O estado do combo ativo não persistiu após reload.");
+
+    console.log("Cenário 2.3: morango estraga e exige limpeza manual");
+    await page.evaluate(() => {
+      const currentState = window.__strawberryFarmDebug.getState();
+      currentState.plots = currentState.plots.map((plot, index) => ({
+        ...plot,
+        id: index,
+        state: index === 0 ? "ready" : "empty",
+        plantedAt: null,
+        readyAt: null,
+        rottenAt: index === 0 ? Date.now() + 400 : null,
+        growthDurationMs: null,
+      }));
+      currentState.seeds = Math.max(1, currentState.seeds);
+      currentState.strawberries = 0;
+      window.__strawberryFarmDebug.setState(currentState);
+    });
+    await page.waitForFunction(() => {
+      const plot = document.querySelector(".plot");
+      return plot && plot.textContent && plot.textContent.includes("Estragado");
+    }, { timeout: 4000 });
+    assert(
+      (await page.locator(".plot").nth(0).getAttribute("aria-label"))?.includes("Clique para limpar"),
+      "O canteiro estragado deveria instruir a limpeza manual.",
+    );
+    const berriesBeforeRottenClear = await numberOf(page, "#berryCount");
+    await page.locator(".plot").nth(0).click();
+    await waitForText(page, "#statusMessage", "estragados removidos");
+    assert(
+      (await numberOf(page, "#berryCount")) === berriesBeforeRottenClear,
+      "Limpar o morango estragado não deveria conceder morangos.",
+    );
+    await page.locator(".plot").nth(0).click();
+    await waitForText(page, "#statusMessage", "Plantado.");
+    await page.waitForFunction(() => {
+      const plot = document.querySelector(".plot");
+      return plot && plot.textContent && plot.textContent.includes("Crescendo");
+    });
 
     console.log("Cenário 3: expansão da fazenda para 4x4");
     await reachMoneyTarget(page, 10);
@@ -720,6 +761,7 @@ async function reachMoneyTarget(page, target) {
         state: index === 0 ? "ready" : "empty",
         plantedAt: null,
         readyAt: null,
+        rottenAt: index === 0 ? Date.now() + 5000 : null,
         growthDurationMs: null,
       }));
       window.__strawberryFarmDebug.setState(currentState);
@@ -757,6 +799,7 @@ async function reachMoneyTarget(page, target) {
         state: index === 0 ? "empty" : "growing",
         plantedAt: index === 0 ? null : Date.now(),
         readyAt: index === 0 ? null : Date.now() + growthDurationMs,
+        rottenAt: null,
         growthDurationMs: index === 0 ? null : growthDurationMs,
       }));
       window.__strawberryFarmDebug.setState(currentState);
@@ -802,6 +845,7 @@ async function reachMoneyTarget(page, target) {
         state: index === 1 ? "empty" : "growing",
         plantedAt: index === 1 ? null : Date.now(),
         readyAt: index === 1 ? null : Date.now() + growthDurationMs,
+        rottenAt: null,
         growthDurationMs: index === 1 ? null : growthDurationMs,
       }));
       window.__strawberryFarmDebug.setState(currentState);

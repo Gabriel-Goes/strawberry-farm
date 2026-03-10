@@ -74,6 +74,7 @@
         state: config.plotStates.empty,
         plantedAt: null,
         readyAt: null,
+        rottenAt: null,
         growthDurationMs: null,
       })),
     };

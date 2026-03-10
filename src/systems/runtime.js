@@ -68,7 +68,7 @@
     const marketChanged = SF.market.updateMarketState(game, now);
     const comboExpired = SF.combo.updateComboState(game, now);
     const helperPrimed = SF.helper.updateHelperState(game, now);
-    const plotsReady = SF.plots.updatePlotsByTime(game, now);
+    const plotUpdates = SF.plots.updatePlotsByTime(game, now);
     const helperActed = options.runHelperAction ? SF.helper.runFarmHelper(game, now) : false;
 
     syncUiEffects(game, now);
@@ -78,7 +78,7 @@
       marketChanged,
       comboExpired,
       helperPrimed,
-      plotsReady,
+      plotUpdates,
       helperActed,
     };
   }
@@ -188,7 +188,7 @@
   }
 
   function tick(game, now = Date.now()) {
-    const { eventEnded, marketChanged, comboExpired, plotsReady, helperActed } = reconcileState(game, now, {
+    const { eventEnded, marketChanged, comboExpired, plotUpdates, helperActed } = reconcileState(game, now, {
       runHelperAction: true,
     });
 
@@ -213,7 +213,13 @@
       return;
     }
 
-    if (plotsReady) {
+    if (plotUpdates.becameRotten) {
+      game.setMessage("Um morango estragou.");
+      persistAndRender(game, "full", now, { save: false, markDirty: true });
+      return;
+    }
+
+    if (plotUpdates.becameReady) {
       game.setMessage("Há morangos prontos.");
       persistAndRender(game, "full", now, { save: false, markDirty: true });
       return;

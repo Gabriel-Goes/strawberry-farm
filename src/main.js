@@ -43,6 +43,11 @@
         return;
       }
 
+      if (plot.state === SF.config.plotStates.rotten) {
+        SF.plots.clearRottenPlot(game, plot, now);
+        return;
+      }
+
       SF.runtime.showMessage(game, "Ainda crescendo.", { now });
     },
   };

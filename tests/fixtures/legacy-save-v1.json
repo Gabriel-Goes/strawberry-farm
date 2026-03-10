@@ -57,6 +57,7 @@
       "state": "ready",
       "plantedAt": null,
       "readyAt": null,
+      "rottenInMs": 3000,
       "growthDurationMs": null
     },
     {

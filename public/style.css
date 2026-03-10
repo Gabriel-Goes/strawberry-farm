@@ -22,6 +22,7 @@
   --empty: #c48a65;
   --sprout: #4cae57;
   --ready: #d7264f;
+  --rotten: #7a5b4a;
   --track: rgba(255, 255, 255, 0.22);
   --shadow: 0 28px 70px rgba(105, 58, 36, 0.16);
   --radius-xl: 34px;
@@ -665,6 +666,10 @@ h1 {
   background: var(--ready);
 }
 
+.legend__dot--rotten {
+  background: var(--rotten);
+}
+
 .farm-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -784,6 +789,12 @@ h1 {
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 35%),
     linear-gradient(180deg, #f06f8f, var(--ready));
   animation: readyPulse 1s ease-in-out infinite alternate;
+}
+
+.plot--rotten {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 35%),
+    linear-gradient(180deg, #8f6e5d, var(--rotten));
 }
 
 .plot--harvested {

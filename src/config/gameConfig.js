@@ -30,6 +30,7 @@ window.StrawberryFarm.config = {
   crop: {
     name: "Morango",
     growthTimeMs: 10000,
+    spoilTimeMs: 6000,
     harvestYield: 1,
     sellPrice: 3,
     seedPrice: 2,
@@ -148,5 +149,6 @@ window.StrawberryFarm.config = {
     empty: "empty",
     growing: "growing",
     ready: "ready",
+    rotten: "rotten",
   },
 };

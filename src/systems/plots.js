@@ -26,19 +26,38 @@
   }
 
   function updatePlotsByTime(game, now = Date.now()) {
-    let changed = false;
+    let becameReady = false;
+    let becameRotten = false;
 
     getVisiblePlots(game).forEach((plot) => {
+      if (plot.state === SF.config.plotStates.ready && !Number.isFinite(plot.rottenAt)) {
+        plot.rottenAt = now + SF.config.crop.spoilTimeMs;
+        becameReady = true;
+        return;
+      }
+
       if (plot.state === SF.config.plotStates.growing && Number.isFinite(plot.readyAt) && now >= plot.readyAt) {
         plot.state = SF.config.plotStates.ready;
         plot.plantedAt = null;
         plot.readyAt = null;
+        plot.rottenAt = now + SF.config.crop.spoilTimeMs;
         plot.growthDurationMs = null;
-        changed = true;
+        becameReady = true;
+        return;
+      }
+
+      if (plot.state === SF.config.plotStates.ready && Number.isFinite(plot.rottenAt) && now >= plot.rottenAt) {
+        plot.state = SF.config.plotStates.rotten;
+        plot.rottenAt = null;
+        becameRotten = true;
       }
     });
 
-    return changed;
+    return {
+      changed: becameReady || becameRotten,
+      becameReady,
+      becameRotten,
+    };
   }
 
   function markPlotHarvested(game, plotId, source = "manual", now = Date.now()) {
@@ -74,6 +93,7 @@
     plot.state = SF.config.plotStates.growing;
     plot.plantedAt = now;
     plot.readyAt = now + growthDurationMs;
+    plot.rottenAt = null;
     plot.growthDurationMs = growthDurationMs;
     game.state.seeds -= 1;
 
@@ -96,6 +116,7 @@
     plot.state = SF.config.plotStates.empty;
     plot.plantedAt = null;
     plot.readyAt = null;
+    plot.rottenAt = null;
     plot.growthDurationMs = null;
     game.state.strawberries += SF.config.crop.harvestYield;
     game.state.stats.harvestedTotal += SF.config.crop.harvestYield;
@@ -115,15 +136,27 @@
     game.commit({ now });
   }
 
+  function clearRottenPlot(game, plot, now = Date.now()) {
+    plot.state = SF.config.plotStates.empty;
+    plot.plantedAt = null;
+    plot.readyAt = null;
+    plot.rottenAt = null;
+    plot.growthDurationMs = null;
+    game.setMessage("Morangos estragados removidos.");
+    game.commit({ now });
+  }
+
   function getFarmMetrics(game) {
     const visiblePlots = getVisiblePlots(game);
     const readyPlots = visiblePlots.filter((plot) => plot.state === SF.config.plotStates.ready).length;
     const growingPlots = visiblePlots.filter((plot) => plot.state === SF.config.plotStates.growing).length;
+    const rottenPlots = visiblePlots.filter((plot) => plot.state === SF.config.plotStates.rotten).length;
 
     return {
       unlockedPlots: game.state.unlockedPlotCount,
       readyPlots,
       growingPlots,
+      rottenPlots,
     };
   }
 
@@ -148,6 +181,9 @@
     if (plot.state === SF.config.plotStates.ready) {
       return "🍓";
     }
+    if (plot.state === SF.config.plotStates.rotten) {
+      return "🫙";
+    }
     return "🟫";
   }
 
@@ -157,6 +193,9 @@
     }
     if (plot.state === SF.config.plotStates.ready) {
       return "Pronto para colher";
+    }
+    if (plot.state === SF.config.plotStates.rotten) {
+      return "Morangos estragados";
     }
     return "Terreno vazio";
   }
@@ -168,6 +207,9 @@
     if (plot.state === SF.config.plotStates.ready) {
       return "Colher";
     }
+    if (plot.state === SF.config.plotStates.rotten) {
+      return "Limpar";
+    }
     return "Plantar";
   }
 
@@ -177,6 +219,9 @@
     }
     if (plot.state === SF.config.plotStates.ready) {
       return "Madura";
+    }
+    if (plot.state === SF.config.plotStates.rotten) {
+      return "Estragado";
     }
 
     const progress = getPlotProgress(plot, now);
@@ -194,8 +239,15 @@
       const remainingMs = Math.max(0, plot.readyAt - now);
       return `Faltam ${SF.utils.formatSeconds(remainingMs)}`;
     }
+    if (plot.state === SF.config.plotStates.ready && Number.isFinite(plot.rottenAt)) {
+      const remainingMs = Math.max(0, plot.rottenAt - now);
+      return `Estraga em ${SF.utils.formatSeconds(remainingMs)}`;
+    }
     if (plot.state === SF.config.plotStates.ready) {
       return "Clique para colher";
+    }
+    if (plot.state === SF.config.plotStates.rotten) {
+      return "Clique para limpar";
     }
     return "Clique para plantar";
   }
@@ -205,7 +257,10 @@
       return `${Math.round(getPlotProgress(plot, now))}% concluído`;
     }
     if (plot.state === SF.config.plotStates.ready) {
-      return "Clique agora para colher";
+      return "Colha antes de estragar";
+    }
+    if (plot.state === SF.config.plotStates.rotten) {
+      return "Remova para plantar de novo";
     }
     return "Clique para plantar";
   }
@@ -225,6 +280,7 @@
     plantPlotWithSource,
     harvestPlot,
     harvestPlotWithSource,
+    clearRottenPlot,
     getFarmMetrics,
     getPlotProgress,
     getPlotEmoji,

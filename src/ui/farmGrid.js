@@ -79,7 +79,8 @@
       plotElement.progressTrack.hidden = plot.state !== SF.config.plotStates.growing;
       plotElement.button.classList.toggle(
         "plot--attention",
-        plot.state === SF.config.plotStates.ready && farmMetrics.readyPlots > 0,
+        (plot.state === SF.config.plotStates.ready && farmMetrics.readyPlots > 0) ||
+          (plot.state === SF.config.plotStates.rotten && farmMetrics.rottenPlots > 0),
       );
       plotElement.button.classList.toggle("plot--harvested", game.uiState.harvestedPlots[plot.id]?.source === "manual");
       plotElement.button.classList.toggle(

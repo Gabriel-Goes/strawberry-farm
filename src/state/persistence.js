@@ -196,6 +196,7 @@
           state: plotState,
           plantedAt: Number.isFinite(savedPlot.plantedAt) ? savedPlot.plantedAt : null,
           readyAt: Number.isFinite(savedPlot.readyAt) ? savedPlot.readyAt : null,
+          rottenAt: Number.isFinite(savedPlot.rottenAt) ? savedPlot.rottenAt : null,
           growthDurationMs: Number.isFinite(savedPlot.growthDurationMs) ? savedPlot.growthDurationMs : null,
         };
       });

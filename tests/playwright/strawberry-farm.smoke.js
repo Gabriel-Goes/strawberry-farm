@@ -76,6 +76,7 @@ function materializeLegacySave(template, now) {
         state: "empty",
         plantedAt: null,
         readyAt: null,
+        rottenAt: null,
         growthDurationMs: null,
       };
     }
@@ -85,6 +86,7 @@ function materializeLegacySave(template, now) {
       state: templatePlot.state,
       plantedAt: Number.isFinite(templatePlot.plantedOffsetMs) ? now + templatePlot.plantedOffsetMs : null,
       readyAt: Number.isFinite(templatePlot.readyInMs) ? now + templatePlot.readyInMs : null,
+      rottenAt: Number.isFinite(templatePlot.rottenInMs) ? now + templatePlot.rottenInMs : null,
       growthDurationMs: Number.isFinite(templatePlot.growthDurationMs) ? templatePlot.growthDurationMs : null,
     };
   });
@@ -185,11 +187,12 @@ async function setExpiredComboScenario(page) {
     state.plots = state.plots.map((plot, index) => ({
       ...plot,
       id: index,
-      state: index === 0 ? "ready" : "empty",
-      plantedAt: null,
-      readyAt: null,
-      growthDurationMs: null,
-    }));
+        state: index === 0 ? "ready" : "empty",
+        plantedAt: null,
+        readyAt: null,
+        rottenAt: index === 0 ? Date.now() + 4000 : null,
+        growthDurationMs: null,
+      }));
     window.__strawberryFarmDebug.setState(state);
   });
 }
@@ -230,7 +233,32 @@ async function setExpiredComboScenario(page) {
     await waitForText(page, "#statusMessage", "Colheita.");
     assert(!(await textOf(page, "#statusMessage")).includes("Combo x"), "Combo expirado não deveria continuar ativo.");
 
-    console.log("Smoke 4: save legado e timer edge");
+    console.log("Smoke 4: apodrecimento e limpeza");
+    await page.evaluate(() => {
+      const state = window.__strawberryFarmDebug.getState();
+      state.plots = state.plots.map((plot, index) => ({
+        ...plot,
+        id: index,
+        state: index === 0 ? "ready" : "empty",
+        plantedAt: null,
+        readyAt: null,
+        rottenAt: index === 0 ? Date.now() + 300 : null,
+        growthDurationMs: null,
+      }));
+      window.__strawberryFarmDebug.setState(state);
+    });
+    await page.waitForFunction(() => {
+      const plot = document.querySelector(".plot");
+      return plot && plot.textContent && plot.textContent.includes("Estragado");
+    }, { timeout: 4000 });
+    await page.locator(".plot").nth(0).click();
+    await waitForText(page, "#statusMessage", "estragados removidos");
+    await page.waitForFunction(() => {
+      const plot = document.querySelector(".plot");
+      return plot && plot.textContent && plot.textContent.includes("Terreno vazio");
+    });
+
+    console.log("Smoke 5: save legado e timer edge");
     await injectLegacySave(page);
     await page.reload({ waitUntil: "load" });
     await waitForText(page, "#eventTitle", "Feira local");
@@ -243,7 +271,7 @@ async function setExpiredComboScenario(page) {
       { timeout: 5000 },
     );
 
-    console.log("Smoke 5: prestígio e reset");
+    console.log("Smoke 6: prestígio e reset");
     await page.evaluate(() => {
       const state = window.__strawberryFarmDebug.getState();
       state.money = 120;
