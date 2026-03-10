@@ -38,6 +38,7 @@
       },
       ui: {
         helpOpen: false,
+        activeSidebarTab: "goals",
       },
       stats: {
         harvestedTotal: 0,

@@ -39,6 +39,7 @@
     renderPrestigeCard(game);
     renderPrestigePanel(game);
     renderHelpPanel(game);
+    renderSidebarTabs(game);
     renderUpgradeCards(game);
     renderProgression(game);
   }
@@ -345,9 +346,32 @@
   }
 
   function renderHelpPanel(game) {
-    game.elements.helpPanel.hidden = !game.state.ui.helpOpen;
-    game.elements.helpToggleButton.textContent = game.state.ui.helpOpen ? "Fechar guia" : "Guia";
-    game.elements.helpToggleButton.setAttribute("aria-expanded", String(game.state.ui.helpOpen));
+    const isGuideTabActive = game.state.ui.activeSidebarTab === "guide";
+    game.state.ui.helpOpen = isGuideTabActive;
+    game.elements.helpPanel.hidden = !isGuideTabActive;
+    game.elements.helpToggleButton.textContent = isGuideTabActive ? "Fechar guia" : "Guia";
+    game.elements.helpToggleButton.setAttribute("aria-expanded", String(isGuideTabActive));
+  }
+
+  function renderSidebarTabs(game) {
+    const activeTab = ["goals", "upgrades", "guide"].includes(game.state.ui.activeSidebarTab)
+      ? game.state.ui.activeSidebarTab
+      : "goals";
+    const tabs = [
+      { button: game.elements.sidebarGoalsTab, panel: game.elements.progressionPanel, id: "goals" },
+      { button: game.elements.sidebarGuideTab, panel: game.elements.helpPanel, id: "guide" },
+    ];
+
+    tabs.forEach(({ button, panel, id }) => {
+      const isActive = activeTab === id;
+      button.classList.toggle("management-tab--active", isActive);
+      button.setAttribute("aria-selected", String(isActive));
+      button.setAttribute("tabindex", isActive ? "0" : "-1");
+      panel.hidden = !isActive;
+    });
+
+    game.elements.sidebarUpgradesTab.classList.toggle("management-tab--active", activeTab === "upgrades");
+    game.elements.sidebarUpgradesTab.setAttribute("aria-selected", String(activeTab === "upgrades"));
   }
 
   function renderProgressIndicators(game, farmMetrics) {

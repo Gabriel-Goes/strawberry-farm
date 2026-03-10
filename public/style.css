@@ -76,7 +76,6 @@ button {
 }
 
 .app {
-  min-height: 100vh;
   display: grid;
   place-items: start center;
   padding: 10px;
@@ -239,6 +238,7 @@ h1 {
 
 .zone {
   min-width: 0;
+  min-height: 0;
   display: grid;
   gap: 12px;
   align-content: start;
@@ -246,9 +246,12 @@ h1 {
 }
 
 .zone--right {
+  height: calc(100vh - 170px);
+  align-self: stretch;
   max-height: 100%;
   overflow: auto;
   padding-right: 4px;
+  padding-bottom: 6px;
 }
 
 .zone--right::-webkit-scrollbar {
@@ -277,7 +280,7 @@ h1 {
 }
 
 .overview-card {
-  padding: 14px;
+  padding: 13px;
   background:
     radial-gradient(circle at top right, rgba(237, 168, 60, 0.18), transparent 34%),
     radial-gradient(circle at bottom left, rgba(69, 157, 87, 0.14), transparent 28%),
@@ -334,7 +337,7 @@ h1 {
 .mini-stat {
   position: relative;
   overflow: hidden;
-  padding: 12px;
+  padding: 10px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(124, 69, 44, 0.08);
   background: rgba(255, 255, 255, 0.68);
@@ -399,8 +402,8 @@ h1 {
 
 .stat__value {
   display: block;
-  margin-top: 6px;
-  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+  margin-top: 4px;
+  font-size: clamp(1.45rem, 2.1vw, 1.95rem);
   line-height: 1;
 }
 
@@ -471,11 +474,11 @@ h1 {
 }
 
 .status-stack {
-  gap: 10px;
+  gap: 8px;
 }
 
 .status-module {
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 .status-module--message {
@@ -587,7 +590,7 @@ h1 {
 }
 
 .board-stage {
-  padding: 10px;
+  padding: 9px;
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.56), transparent 22%),
     radial-gradient(circle at bottom right, rgba(217, 65, 103, 0.08), transparent 26%),
@@ -595,8 +598,8 @@ h1 {
 }
 
 .milestone-toast {
-  margin-top: 12px;
-  padding: 12px 14px;
+  margin-top: 10px;
+  padding: 10px 12px;
   background: linear-gradient(135deg, rgba(235, 248, 235, 0.98), rgba(186, 229, 195, 0.72));
   border: 1px solid rgba(69, 157, 87, 0.18);
 }
@@ -607,8 +610,8 @@ h1 {
 }
 
 .farm-section {
-  margin-top: 12px;
-  padding: 12px;
+  margin-top: 10px;
+  padding: 10px;
   border-radius: 30px;
   background:
     linear-gradient(180deg, rgba(255, 248, 241, 0.96), rgba(248, 226, 214, 0.78)),
@@ -621,7 +624,7 @@ h1 {
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .legend {
@@ -665,7 +668,7 @@ h1 {
 .farm-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .farm-grid--expanded {
@@ -674,8 +677,8 @@ h1 {
 
 .plot {
   appearance: none;
-  min-height: 114px;
-  padding: 10px;
+  min-height: 98px;
+  padding: 8px;
   border: 0;
   border-radius: 28px;
   background:
@@ -686,7 +689,7 @@ h1 {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
@@ -717,7 +720,7 @@ h1 {
 }
 
 .plot__emoji {
-  font-size: 1.7rem;
+  font-size: 1.45rem;
   line-height: 1;
 }
 
@@ -729,7 +732,7 @@ h1 {
 }
 
 .plot__name {
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 700;
 }
 
@@ -740,17 +743,17 @@ h1 {
 }
 
 .plot__stage {
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 700;
 }
 
 .plot__timer {
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   opacity: 0.92;
 }
 
 .plot__hint {
-  font-size: 0.64rem;
+  font-size: 0.6rem;
   opacity: 0.95;
 }
 
@@ -791,9 +794,16 @@ h1 {
   animation: harvestFlashAuto 560ms ease-out;
 }
 
-.insight-stack {
+.insight-stack,
+.management-deck,
+.management-tabs,
+.goal-list--compact {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+}
+
+.management-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .event-banner {
@@ -837,9 +847,10 @@ h1 {
 .market-banner,
 .prestige-panel,
 .progression,
+.management-deck,
 .help-panel,
 .upgrade-card {
-  padding: 14px;
+  padding: 12px;
 }
 
 .event-banner__text,
@@ -937,6 +948,7 @@ h1 {
 }
 
 .progression__header,
+.management-deck__header,
 .help-panel__header {
   display: flex;
   justify-content: space-between;
@@ -958,8 +970,51 @@ h1 {
   gap: 9px;
 }
 
+.goal-list--compact {
+  margin-top: 0;
+}
+
+.management-deck {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  backdrop-filter: blur(8px);
+}
+
+.management-tab {
+  border: 0;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(75, 42, 26, 0.06);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: "Trebuchet MS", "Gill Sans", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 700;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.management-tab--active {
+  background: linear-gradient(180deg, rgba(200, 52, 89, 0.14), rgba(200, 52, 89, 0.08));
+  color: var(--accent-dark);
+}
+
+.management-tab:hover,
+.management-tab:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.management-panel[hidden] {
+  display: none;
+}
+
 .goal-item {
-  padding: 12px;
+  padding: 10px 11px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(124, 69, 44, 0.08);
   background: rgba(248, 217, 200, 0.28);
@@ -993,7 +1048,7 @@ h1 {
 }
 
 .upgrades {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .upgrade-card {
@@ -1003,7 +1058,7 @@ h1 {
 }
 
 .upgrade-card__text {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   min-height: 0;
 }
 
@@ -1077,31 +1132,24 @@ h1 {
 
   .game-shell {
     grid-template-columns: minmax(250px, 310px) minmax(0, 1fr);
-    min-height: auto;
-    max-height: none;
   }
 
   .zone--right {
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
+    height: auto;
     grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
   }
 
-  .progression,
-  .upgrades,
-  .help-panel {
-    grid-column: span 1;
+  .insight-stack {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .upgrades {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .help-panel {
+  .management-deck {
     grid-column: 1 / -1;
+  }
+
+  .goal-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1128,14 +1176,15 @@ h1 {
   }
 
   .game-shell,
-  .zone--right,
   .stats--compact,
   .quick-status,
   .actions--compact,
   .progress-strip,
   .farm-grid,
   .farm-grid--expanded,
-  .upgrades {
+  .upgrades,
+  .insight-stack,
+  .goal-list {
     grid-template-columns: 1fr;
   }
 

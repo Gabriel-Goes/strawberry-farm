@@ -72,6 +72,9 @@
     game.elements.prestigeButton.addEventListener("click", prestigeFarm);
     game.elements.helpToggleButton.addEventListener("click", toggleHelpPanel);
     game.elements.helpDismissButton.addEventListener("click", dismissHelpPanel);
+    game.elements.sidebarGoalsTab.addEventListener("click", () => setSidebarTab("goals"));
+    game.elements.sidebarUpgradesTab.addEventListener("click", () => setSidebarTab("upgrades"));
+    game.elements.sidebarGuideTab.addEventListener("click", () => setSidebarTab("guide"));
     window.addEventListener("pagehide", flushAutosave);
     window.addEventListener("beforeunload", flushAutosave);
     document.addEventListener("visibilitychange", () => {
@@ -350,16 +353,18 @@
   }
 
   function toggleHelpPanel() {
-    const now = Date.now();
-    SF.runtime.setNow(game, now);
-    game.state.ui.helpOpen = !game.state.ui.helpOpen;
-    SF.runtime.persistAndRender(game, "full", now);
+    setSidebarTab(game.state.ui.activeSidebarTab === "guide" ? "goals" : "guide");
   }
 
   function dismissHelpPanel() {
+    setSidebarTab("goals");
+  }
+
+  function setSidebarTab(tabId) {
     const now = Date.now();
     SF.runtime.setNow(game, now);
-    game.state.ui.helpOpen = false;
+    game.state.ui.activeSidebarTab = ["goals", "upgrades", "guide"].includes(tabId) ? tabId : "goals";
+    game.state.ui.helpOpen = game.state.ui.activeSidebarTab === "guide";
     SF.runtime.persistAndRender(game, "full", now);
   }
 
